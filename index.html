@@ -1,0 +1,124 @@
+<title>Documentation</title>
+<link href="style.css" rel="stylesheet" />
+
+<h1>Node Multiplayer App</h1>
+
+<p>An on-going project for a turn-based game built in nodeJS and easelJS. Still nothing substantial to see here.</p>
+
+<h2>setUserName</h2>
+
+<p>Sets the name of the user to the server, which enables other &quot;write&quot; API calls</p>
+
+<p><strong>Server_Event</strong></p>
+
+<pre><code>{
+    userId: &#39;1a2b3c4d5e6f7g8&#39;,
+    userName: &#39;Bob&#39;
+}
+</code></pre>
+
+<p><strong>Client_Request</strong></p>
+
+<pre><code>{
+    userName: &#39;Bob&#39;
+}
+</code></pre>
+
+<h2>roomList</h2>
+
+<p>Sends the client the list of available rooms to join</p>
+
+<p><strong>Server_Event</strong></p>
+
+<pre><code>{
+    rooms: [
+        { 
+            roomId: &#39;8g7f6e5d4c3b2a1&#39;,
+            roomName: &#39;Room of Bob&#39;
+        }, {
+            roomId: &#39;1a2b3c4d5e6f7g8&#39;,
+            roomName: &#39;Not room of bob&#39;
+        }
+    ]
+}
+</code></pre>
+
+<h2>joinRoom</h2>
+
+<p>Subscribes the user to the room</p>
+
+<p><strong>Server_Event</strong></p>
+
+<pre><code>{
+    roomId: &#39;8g7f6e5d4c3b2a1&#39;
+    roomName: &#39;The Room of Bob&#39;
+}
+</code></pre>
+
+<p><strong>Client_Request</strong></p>
+
+<pre><code>{
+    roomId: &#39;8g7f6e5d4c3b2a1&#39;
+}
+</code></pre>
+
+<h2>addUser</h2>
+
+<p>Notifies the client that a user has joined the room</p>
+
+<p><strong>Server_Event</strong></p>
+
+<pre><code>{
+    roomId: &#39;8g7f6e5d4c3b2a1&#39;,
+    userId: &#39;1a2b3c4d5e6f7g8&#39;,
+    userName: &#39;Bob&#39;,
+    message: &#39;Bob has entered the room&#39;
+}
+</code></pre>
+
+<h2>removeUser</h2>
+
+<p>Notifies the client that a user has left the room</p>
+
+<p><strong>Server_Event</strong></p>
+
+<pre><code>{
+    roomId: &#39;8g7f6e5d4c3b2a1&#39;,
+    userId: &#39;1a2b3c4d5e6f7g8&#39;,
+    message: &#39;Bob has left the room&#39;
+}
+</code></pre>
+
+<h2>playersReady</h2>
+
+<p>Notifies the client that the players are set and the game is ready to start.</p>
+
+<p><strong>Server_Event</strong></p>
+
+<pre><code>{
+    message: &#39;Players of &quot;Room of Bob&quot; is ready&#39;
+}
+</code></pre>
+
+<h2>addUnit</h2>
+
+<p>Notifies the client that a player&#39;s unit has spawned to the room.</p>
+
+<p><strong>Server_Event</strong></p>
+
+<pre><code>{
+    unitId: &#39;abcde123&#39;,
+    unitName: &#39;Lemurian Marine&#39;,
+    unitCode: &#39;lemurian_marine&#39;,
+    unitStats: {
+        maxHealth: 100,
+        health: 100,
+        maxEnergy: 50,
+        energy: 50,
+        maxActions: 10,
+        actions: 10,
+        turnSpeed: 20
+    }
+
+}
+</code></pre>

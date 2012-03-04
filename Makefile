@@ -1,10 +1,13 @@
 markdown:
-	redcarpet README.md > ./documentation/readme.html
+	redcarpet README.md > ./docs.html
 
 combine:
-	cat ./documentation/protocol.html ./documentation/readme.html > ./documentation/index.html
+	cat ./layout.html ./docs.html > ./index.html
+
+sass-convert:
+	sass ./src/style.sass ./style.css
 
 preview:
-	open ./documentation/index.html
+	open ./index.html
 
-all: markdown combine preview
+all: markdown combine sass-convert preview
