@@ -8,7 +8,7 @@
 
 <h4>ServerEvent</h4>
 
-<pre><code>{
+<pre><code>var result = {
     userId: &#39;1a2b3c4d5e6f7g8&#39;,
     userName: &#39;Bob&#39;
 }
@@ -16,7 +16,7 @@
 
 <h4>ClientRequest</h4>
 
-<pre><code>{
+<pre><code>var result = {
     userName: &#39;Bob&#39;
 }
 </code></pre>
@@ -27,12 +27,12 @@
 
 <h4>ServerEvent</h4>
 
-<pre><code>{
+<pre><code>var result = {
     rooms: [
-        { 
+        var result = { 
             roomId: &#39;8g7f6e5d4c3b2a1&#39;,
             roomName: &#39;Room of Bob&#39;
-        }, {
+        }, var result = {
             roomId: &#39;1a2b3c4d5e6f7g8&#39;,
             roomName: &#39;Not room of bob&#39;
         }
@@ -46,7 +46,7 @@
 
 <h4>ServerEvent</h4>
 
-<pre><code>{
+<pre><code>var result = {
     roomId: &#39;8g7f6e5d4c3b2a1&#39;
     roomName: &#39;The Room of Bob&#39;
 }
@@ -54,7 +54,7 @@
 
 <h4>ClientRequest</h4>
 
-<pre><code>{
+<pre><code>var result = {
     roomId: &#39;8g7f6e5d4c3b2a1&#39;
 }
 </code></pre>
@@ -65,7 +65,7 @@
 
 <h4>ServerEvent</h4>
 
-<pre><code>{
+<pre><code>var result = {
     roomId: &#39;8g7f6e5d4c3b2a1&#39;,
     userId: &#39;1a2b3c4d5e6f7g8&#39;,
     userName: &#39;Bob&#39;,
@@ -79,7 +79,7 @@
 
 <h4>ServerEvent</h4>
 
-<pre><code>{
+<pre><code>var result = {
     roomId: &#39;8g7f6e5d4c3b2a1&#39;,
     userId: &#39;1a2b3c4d5e6f7g8&#39;,
     message: &#39;Bob has left the game&#39;
@@ -92,7 +92,7 @@
 
 <h4>ServerEvent</h4>
 
-<pre><code>{
+<pre><code>var result = {
     message: &#39;Players of &quot;Room of Bob&quot; is ready&#39;
 }
 </code></pre>
@@ -103,11 +103,11 @@
 
 <h4>ServerEvent</h4>
 
-<pre><code>{
+<pre><code>var result = {
     unitId: &#39;abcde123&#39;,
     unitName: &#39;Lemurian Marine&#39;,
     unitCode: &#39;lemurian_marine&#39;,
-    unitStats: {
+    unitStats: var result = {
         maxHealth: 100,
         health: 100,
         maxEnergy: 50,
@@ -126,7 +126,7 @@
 
 <h4>ServerEvent</h4>
 
-<pre><code>{
+<pre><code>var result = {
     unitId: &#39;abcde123&#39;,
     message: &#39;Bob\&#39;s Lemurian Marine has been eliminated.&#39;
 }
