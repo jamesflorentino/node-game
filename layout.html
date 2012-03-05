@@ -5,7 +5,18 @@
 <script src="javascripts/highlight.pack.js"></script>
 <script>
 	hljs.tabReplace = ' ';
-	hljs.initHighlightingOnLoad('javascript');</script>
+	window.onload = function () {
+		var codes = document.getElementsByTagName('code');
+		console.log(codes);
+		for(var i=0;i<codes.length;i++){
+			var code = codes[i];
+			console.log(code);
+			code.className = 'javascript';
+			hljs.highlightBlock(code);
+		}
+	}
+	//hljs.initHighlightingOnLoad('javascript');
+</script>
 <div id="nav">
 	<h2>Protocol</h2>
 	#{nav}

@@ -1,8 +1,0 @@
-- [setUserName](#setUserName) 
-- [roomList](#roomList) 
-- [joinRoom](#joinRoom) 
-- [addUser](#addUser) 
-- [removeUser](#removeUser) 
-- [playersReady](#playersReady) 
-- [addUnit](#addUnit) 
-- [removeUnit](#removeUnit) 
