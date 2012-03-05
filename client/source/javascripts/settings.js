@@ -21,17 +21,11 @@ Wol.AssetList = [
     name: 'hex_act_target',
     url: '/images/hex_act_target.png'
   }
-
-
 ];
 
-Wol.Settings = (function(){
-  return {
-    map: 'mp_lemuria',
-    terrainY: 170,
-    terrainX: 20,
-    gridRows: 8,
-    gridColumns: 7
-  };
-})
-
+Wol.Settings = {
+  terrainX: -60,
+  terrainY: 150,
+  columns: 7,
+  rows: 7
+}

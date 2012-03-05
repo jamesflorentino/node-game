@@ -1,4 +1,4 @@
-class AssetLoader
+class @Wol.AssetLoader
 
   constructor: ->
     @__list = []
@@ -17,7 +17,6 @@ class AssetLoader
       image.src = item.url
       item.file = image
       item.type = 'image'
-
       @__list[item.name] = item
       return
     return
@@ -27,4 +26,4 @@ class AssetLoader
     @finished @list if @loaded >= @list.length and @finished?
     return
 
-@Wol.AssetLoader = AssetLoader
+

@@ -123,8 +123,7 @@ class Ui.TurnList extends Wol.Views.View
 			@logs.append log
 		return
 
-
-class Ui.Actions extends Wol.Views.View
+class Ui.ActionMenu extends Wol.Views.View
 
 	init: ->
 		@el = $ '#actionMenu'

@@ -19,3 +19,4 @@ window.implement = (obj, prop) ->
   return
 
 
+window.after = (ms, cb) -> setTimeout cb, ms

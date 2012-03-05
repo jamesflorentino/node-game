@@ -1,11 +1,9 @@
 /*
 # Node Game Server
 # ------------------------------------------------
-# Author  : James Florentino
-# E-mail  : j@jamesflorentino.com
-# Twitter : @jamesflorentino
-# Github  : @jamesflorentino
-# Dribble : @jamesflorentino
+# Author	: James Florentino
+# E-mail	: j@jamesflorentino.com
+# Github	: @jamesflorentino
 */
 var MAX_PLAYERS_PER_ROOM, MAX_USERS_PER_ROOM, Model, PORT, PlayerType, Room, ServerData, ServerProtocol, User, io, onConnect, randomId, testRoom, _,
   __hasProp = Object.prototype.hasOwnProperty,
@@ -157,10 +155,12 @@ ServerProtocol = {
     return room[0];
   },
   joinRoom: function(user, room) {
-    var playerType, socket, totalUsers, userId, userName;
+    var playerType, roomId, roomName, socket, totalUsers, userId, userName;
     if (room === void 0) return;
     userId = user.id;
     userName = user.get('name');
+    roomId = room.id;
+    roomName = room.get('name');
     socket = user.get('socket');
     playerType = PlayerType.PLAYER;
     if (room.totalUsers > MAX_USERS_PER_ROOM) {
@@ -180,20 +180,24 @@ ServerProtocol = {
     }
     socket.on('disconnect', function() {
       room.removeUser(user);
-      return room.announce('removeUser', {
+      room.announce('removeUser', {
+        roomId: roomId,
         userId: userId,
         userName: userName,
         message: "" + playerType + " " + userName + " has left the game."
       });
+      return console.log("" + userName + " left " + roomName);
     });
     user.announce('joinRoom', {
-      roomId: room.id
+      roomId: roomId,
+      roomName: roomName
     });
     room.announce('addUser', {
       userId: userId,
       userName: userName,
       message: "" + playerType + " " + userName + " has joined the game."
     });
+    console.log("" + userName + " joined " + roomName);
     if (totalUsers >= MAX_PLAYERS_PER_ROOM) room.announce('startGame');
     return room;
   },
@@ -235,8 +239,8 @@ io.set('log level', 1);
 
 /*
 io.configure ->
-  io.set 'transports', ['xhr-polling']
-  io.set 'polling duration', 10
+	io.set 'transports', ['xhr-polling']
+	io.set 'polling duration', 10
 */
 
 io.sockets.on('connection', onConnect);
