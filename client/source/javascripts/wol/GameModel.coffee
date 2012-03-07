@@ -17,51 +17,43 @@ class Wol.Models.GameModel extends Wol.Models.Model
 
 	connect: ->
 		@socket = io.connect HOST
-		@createEvents().bindEvents()
+		@bindEvents()
 		@setUserName ['James','Doris','Chloe','Blaise','Rico','Patrick'].random()
 
-	createEvents: ->
-		user = @user
-		socket = @socket
-
-		@events =
-			connect: =>
-				console.log 'connect'
-				this
-
-			disconnect: =>
-				console.log 'disconnect'
-				this
-
-			setUserName: (data) =>
-				user.set id: data.userId, name: data.userName
-				console.log 'setName', data
-				this
-
-			joinRoom: (data) =>
-				console.log 'joinRoom', data
-				this
-
-			addUser: (data) =>
-				console.log 'addUser', data
-				user = new Wol.Models.Model data
-				@users.add user
-				this
-
-			playersReady: (data) =>
-				console.log 'playersReady', data
-				this
-
-		this
-	
 	bindEvents: ->
-		socket = @socket
-		socket.on 'connect', @events.connect
-		socket.on 'disconnect', @events.disconnect
-		socket.on 'setUserName', @events.setUserName
-		socket.on 'joinRoom', @events.joinRoom
-		socket.on 'addUser', @events.addUser
-		this
+		@socket.on 'connect', (data) =>
+			@trigger 'connect', data
+			return
+
+		@socket.on 'disconnect', (data) =>
+			@trigger 'disconnect', data
+			return
+
+		@socket.on 'setUserName', (data) =>
+			@user.set
+				id: data.userid
+				name: data.username
+			@trigger 'setUserName', data
+			return
+
+		@socket.on 'joinRoom', (data) =>
+			@trigger 'joinRoom', data
+			return
+
+		@socket.on 'addUser', (data) =>
+			@trigger 'addUser', data
+			@users.add new Wol.Models.Model(data)
+			return
+
+		@socket.on 'startGame', (data) =>
+			@trigger 'startGame', data
+
+		@socket.on 'addUnit', (data) =>
+			@trigger 'addUnit', data
+			return
+
+		@socket.on 'moveUnit', (data) =>
+			@trigger 'moveUnit', data
 
 	setUserName: (userName) ->
 		@socket.emit 'setUserName',
