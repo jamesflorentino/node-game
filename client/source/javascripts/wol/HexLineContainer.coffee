@@ -1,6 +1,6 @@
 @Wol
 
-class Wol.HexLineContainer
+class Wol.Views.HexLineContainer
 
   constructor: ->
     @el = new Container()

@@ -5,7 +5,7 @@
 # E-mail	: j@jamesflorentino.com
 # Github	: @jamesflorentino
 */
-var MAX_PLAYERS_PER_ROOM, MAX_USERS_PER_ROOM, Model, PORT, PlayerType, Room, ServerData, ServerProtocol, Unit, User, Wol, io, onConnect, randomId, testRoom, _,
+var EventDispatcher, MAX_PLAYERS_PER_ROOM, MAX_USERS_PER_ROOM, Model, PORT, PlayerType, Room, ServerData, ServerProtocol, Unit, User, Wol, io, onConnect, randomId, testRoom, _,
   __hasProp = Object.prototype.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
 
@@ -38,11 +38,55 @@ randomId = function(len) {
   return id;
 };
 
-Array.prototype.last = this[this.length - 1];
+EventDispatcher = (function() {
 
-Model = (function() {
+  function EventDispatcher() {}
+
+  EventDispatcher.prototype.bind = function(name, callback) {
+    var _base;
+    this.e || (this.e = {});
+    (_base = this.e)[name] || (_base[name] = []);
+    this.e[name].push(callback);
+    return this;
+  };
+
+  EventDispatcher.prototype.unbind = function(name, callback) {
+    var index;
+    if (!this.e) return;
+    if (arguments.length === 0) {
+      this.e = {};
+      return this;
+    }
+    if (!this.e[name]) return this;
+    if (!callback) {
+      delete this.e[name];
+      return this;
+    }
+    index = this.e[name].indexOf(callback);
+    this.e[name].splice(index, 1);
+    return this;
+  };
+
+  EventDispatcher.prototype.trigger = function(name, data) {
+    if (!this.e) return this;
+    if (!this.e[name]) return this;
+    this.e[name].forEach(function(event) {
+      if (event != null) return event(data);
+    });
+    return this;
+  };
+
+  return EventDispatcher;
+
+})();
+
+Model = (function(_super) {
+
+  __extends(Model, _super);
 
   Model.prototype.id = randomId();
+
+  Model.prototype.attributes = [];
 
   function Model(attributes) {
     this.attributes = {};
@@ -68,7 +112,7 @@ Model = (function() {
 
   return Model;
 
-})();
+})(EventDispatcher);
 
 User = (function(_super) {
 
@@ -100,11 +144,20 @@ Room = (function(_super) {
     Room.__super__.constructor.apply(this, arguments);
   }
 
+  Room.prototype.users = [];
+
+  Room.prototype.units = [];
+
+  Room.prototype.ready = false;
+
+  Room.prototype.totalUsers = 0;
+
   Room.prototype.initialize = function() {
     this.users = [];
     this.units = [];
     this.ready = false;
     this.totalUsers = 0;
+    this.setEvents();
   };
 
   Room.prototype.addUser = function(user) {
@@ -149,8 +202,6 @@ Room = (function(_super) {
 
   Room.prototype.getUnitById = function(unitId) {
     var unit;
-    console.log('what are you loking??', unitId);
-    console.log('units?', this.units);
     unit = this.units.filter(function(unit) {
       return unit.id === unitId;
     });
@@ -161,6 +212,65 @@ Room = (function(_super) {
     return this;
   };
 
+  Room.prototype.setEvents = function() {
+    var _this = this;
+    this.bind('moveUnitEnd', function(data) {
+      var unit, unitId, user, userId, usersReady;
+      unitId = data.unitId;
+      unit = _this.getUnitById(unitId);
+      userId = unit.get('userId');
+      user = _this.getUserById(userId);
+      user.set({
+        readyState: true
+      });
+      usersReady = _this.users.filter(function(user) {
+        return user.get('readyState');
+      });
+      if (usersReady.length < MAX_PLAYERS_PER_ROOM) return;
+      usersReady.forEach(function(user) {
+        return user.set({
+          readyState: false
+        });
+      });
+      _this.trigger('readyUsers', {
+        users: usersReady,
+        type: 'move'
+      });
+    });
+  };
+
+  Room.prototype.getNextTurn = function() {
+    var activeUnit, highestCharge;
+    activeUnit = void 0;
+    while (!activeUnit) {
+      highestCharge = 0;
+      this.units.forEach(function(unit) {
+        var charge, chargeSpeed;
+        chargeSpeed = unit.getStat('chargeSpeed');
+        console.log(chargeSpeed, unit.stats);
+        charge = unit.getStat('charge');
+        charge += chargeSpeed;
+        unit.set({
+          charge: charge
+        });
+        if (charge > highestCharge) {
+          highestCharge = charge;
+          return activeUnit = unit;
+        }
+      });
+      if (highestCharge < 100) activeUnit = void 0;
+      if (highestCharge === 0) break;
+    }
+    return this.trigger('unitTurn', {
+      unit: activeUnit
+    });
+  };
+
+  Room.prototype.reset = function() {
+    this.users = [];
+    return this.units = [];
+  };
+
   return Room;
 
 })(Model);
@@ -169,6 +279,8 @@ Unit = (function(_super) {
 
   __extends(Unit, _super);
 
+  Unit.prototype.stats = new Model();
+
   function Unit(unitCode) {
     var unitStats;
     Unit.__super__.constructor.call(this);
@@ -176,13 +288,16 @@ Unit = (function(_super) {
       code: unitCode
     });
     unitCode = this.get('code');
-    unitStats = this.getUnitStatsByCode(unitCode);
-    this.set(unitStats);
+    unitStats = Wol.UnitStats[unitCode];
+    this.set({
+      name: unitStats.name
+    });
+    this.stats.set(unitStats.stats);
     return;
   }
 
-  Unit.prototype.getUnitStatsByCode = function(unitCode) {
-    return Wol.UnitStats[unitCode];
+  Unit.prototype.getStat = function(statName) {
+    return this.stats.get(statName);
   };
 
   return Unit;
@@ -201,9 +316,32 @@ ServerProtocol = {
     return this;
   },
   createRoom: function(roomName) {
-    var room;
+    var room, roomId;
     room = new Room({
       name: roomName
+    });
+    roomId = room.id;
+    room.bind('readyUsers', function(event) {
+      switch (event.type) {
+        case 'move':
+          return ServerProtocol.nextUnitTurn(roomId);
+      }
+    });
+    room.bind('unitTurn', function(event) {
+      var message, unit, unitId, user, userId;
+      unit = event.unit;
+      unitId = unit.id;
+      userId = unit.get('userId');
+      user = room.getUserById(userId);
+      message = "" + roomName + ": " + (user.get('name')) + "'s " + (unit.get('name')) + " is taking its turn.";
+      room.set({
+        activeUnit: unit
+      });
+      room.announce('unitTurn', {
+        unitId: unitId,
+        message: message
+      });
+      return console.log(message);
     });
     ServerData.rooms.push(room);
     return room;
@@ -236,11 +374,16 @@ ServerProtocol = {
     user.set({
       playerType: playerType
     });
-    if (user.get('playerType' === PlayerType.PLAYER)) {
-      ServerProtocol.assignEvents(user);
+    if (user.get('playerType') === PlayerType.PLAYER) {
+      console.log('playertype go assign yours hit!');
+      ServerProtocol.assignEvents(userId, roomId);
     }
     socket.on('disconnect', function() {
       room.removeUser(user);
+      if (room.users.length === 0) {
+        room.reset();
+        return;
+      }
       room.announce('removeUser', {
         roomId: roomId,
         userId: userId,
@@ -281,35 +424,8 @@ ServerProtocol = {
       roomId: room.id,
       points: [
         {
-          tileX: 2,
-          tileY: 2
-        }, {
           tileX: 3,
-          tileY: 2
-        }, {
-          tileX: 4,
-          tileY: 2
-        }, {
-          tileX: 4,
           tileY: 3
-        }, {
-          tileX: 4,
-          tileY: 4
-        }, {
-          tileX: 4,
-          tileY: 5
-        }, {
-          tileX: 4,
-          tileY: 6
-        }, {
-          tileX: 3,
-          tileY: 6
-        }, {
-          tileX: 2,
-          tileY: 6
-        }, {
-          tileX: 1,
-          tileY: 6
         }
       ]
     });
@@ -328,7 +444,7 @@ ServerProtocol = {
       unitCode: unit.get('code'),
       unitName: unit.get('name'),
       message: "" + (user.get('name')) + "'s " + (unit.get('name')) + " has been deployed to " + (room.get('name')) + ".",
-      unitStats: unit.get('stats')
+      unitStats: unit.stats.attributes
     });
     return unit;
   },
@@ -352,9 +468,23 @@ ServerProtocol = {
       points: points
     });
   },
-  assignEvents: function(user) {
-    var socket;
+  nextUnitTurn: function(roomId) {
+    var room;
+    room = ServerProtocol.getRoomById(roomId);
+    return room.getNextTurn();
+  },
+  assignEvents: function(userId, roomId) {
+    var room, socket, user;
+    room = ServerProtocol.getRoomById(roomId);
+    user = room.getUserById(userId);
     socket = user.get('socket');
+    socket.on('moveUnitEnd', function(data) {
+      var unitId;
+      unitId = data.unitId;
+      room.trigger('moveUnitEnd', {
+        unitId: unitId
+      });
+    });
   }
 };
 

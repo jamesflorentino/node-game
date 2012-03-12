@@ -13,7 +13,6 @@ class Wol.Views.HexContainer extends Wol.Views.View
 			tileX = 0
 			while tileX < cols
 				hex = new Wol.Views.HexTile tileX: tileX, tileY: tileY
-				hex.show()
 				@__dict["tile_#{tileX}_#{tileY}"] = hex
 				@el.addChild hex.el
 				tileX++

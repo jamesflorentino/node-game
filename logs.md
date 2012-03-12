@@ -2,12 +2,38 @@
 
 ## TODOS
 
-- **server** Instigate a command that spanws a unit in the room/game. server.coffee line 101 (finished)
-- **server** don't put announcements on the class logic. They should be inside the ServerProtocol methods. (finished)
+1. **server** / Instigate a command that spanws a unit in the room/game. server.coffee line 101 (finished)
+2. **server** / don't put announcements on the class logic. They should be inside the ServerProtocol methods. (finished)
+3. **client** / on the `moveUnit` protocol, make sure to send a `moveUnitEnd` call to the server, with the Id of the unit that moved. This is to ensure that the game can progress forward and that ALL clients received the command. code example (finished) :
+
+		socket.send("moveUnitEnd", {
+			unitId: "1a2b3c4d5e6f7"
+		});
+
+4. **server** / bind events triggered from the `Room` class. This allows us to neatly organize events in the `ServerProtocol`(finished)
+5. **client** / set the properties like `walkSpeed` as a prototype property instead to increase performance.(finished)
+6. **server** / calculate the room's next turn. The protocol name will be `turnList` which returns the turn list. And `unitTurn` which tells the client which unit is ready to move. pseudo-code: (finished)
+ 
+		function getNextTurn() {
+			// create a copy of their charge property and name it tentativeCharge
+			// whoever gets the highest possible value for their tempCharge wins the "lottery"
+			// with this we now have an active unit's turn to send to the client. Hold on to this edata.
+			// now we move onto getting a tentative turn list for the client UI to display.
+			// 
+		}
+
+7. **server** / what to do if no one wins the next turn? do I dispatch an event to the client specifyin that the game has ended? If so, I can also use this to tell the clients who got the highest score. :) woot woot
+
+8. **server** / When a user leaves a room, and there's still a player in it, kill all of the player's units for now since this is a two player match only. e.g.
+
+		socket.send("removeUnit", {
+			unitId: "1a2b3c4d5e6f7"
+		});
 
 ## Updates
 
-- Finished the moveUnit implementation from server to client.
+1. Finished the moveUnit implementation from server to client.
+2. When the player logs out and the room is empty, it will reset itself - removing any existing users and units from the room.
 
 ## What I learned
 

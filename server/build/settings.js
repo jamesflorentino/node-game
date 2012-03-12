@@ -41,7 +41,8 @@ Wol.UnitStats['lemurian_marine'] = {
     energy: 5,
     actions: 4,
     moveRadius: 3,
-    charge: 100
+    charge: 100,
+		chargeSpeed: 10
   }
 };
 

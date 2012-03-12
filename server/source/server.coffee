@@ -34,14 +34,50 @@ randomId = (len=10) ->
 		id += chars.substr index, 1
 	id
 
-Array::last = this[@length - 1]
-
-
 # =========================================
 # CLASSES
 # =========================================
-class Model
+
+class EventDispatcher
+
+	bind: (name, callback) ->
+		@e or= {}
+		@e[name] or= []
+		@e[name].push callback
+		this
+
+	unbind: (name, callback) ->
+		return if !@e
+		if arguments.length is 0
+			@e = {}
+			return this
+
+		return this if !@e[name]
+
+		if !callback
+			delete @e[name]
+			return this
+
+		index = @e[name].indexOf callback
+		@e[name].splice index, 1
+		return this
+
+	trigger: (name, data) ->
+		return this if !@e
+		return this if !@e[name]
+		@e[name].forEach (event) ->
+			event data if event?
+		this
+
+
+# ===========================
+# Model
+# ===========================
+class Model extends EventDispatcher
+
 	id: randomId()
+	attributes: []
+
 	constructor: (attributes) ->
 		@attributes = {}
 		@id = randomId()
@@ -70,12 +106,24 @@ class User extends Model
 			.emit eventName, message
 		this
 
+
+# ===========================
+# Rooms
+# ===========================
+
 class Room extends Model
+
+	users: []
+	units: []
+	ready: false
+	totalUsers: 0
+
 	initialize: ->
 		@users = []
 		@units = []
 		@ready = false
 		@totalUsers = 0
+		@setEvents()
 		return
 	
 	addUser: (user) ->
@@ -108,27 +156,86 @@ class Room extends Model
 		unit
 
 	getUnitById: (unitId) ->
-		console.log 'what are you loking??', unitId
-		console.log 'units?', @units
 		unit = @units.filter (unit) -> unit.id is unitId
 		unit[0]
 
 	startGame: -> this
 
+	setEvents: ->
+		@bind 'moveUnitEnd', (data) =>
+			{unitId} = data
+			# set the user's readyState to true
+			# which implies the animation has finished loading.
+			unit = @getUnitById unitId
+			userId = unit.get 'userId'
+			user = @getUserById userId
+			user.set readyState: true
+			# check if all the users's readyState is true
+			usersReady = @users.filter (user) ->
+				user.get 'readyState'
+			# dispatch an event that tells all players are ready for the next move
+			return if usersReady.length < MAX_PLAYERS_PER_ROOM
+			# re-set their readyStates again to false
+			usersReady.forEach (user) -> user.set readyState: false
+			@trigger 'readyUsers',
+				users: usersReady
+				type: 'move' # either `move` or `act`
+			return
+		return
+	
+	getNextTurn: ->
+		activeUnit = undefined
+		# iterate all the units
+		while !activeUnit  # either null or undefined
+			highestCharge = 0
+			@units.forEach (unit) ->
+				chargeSpeed = unit.getStat 'chargeSpeed'
+				console.log chargeSpeed, unit.stats
+				charge = unit.getStat 'charge'
+				charge += chargeSpeed
+				unit.set charge: charge
+				# here we check which unit wins the highest value
+				# in this iteration
+				if charge > highestCharge
+					highestCharge = charge
+					activeUnit = unit
+			# reset the activeUnit value back to undefined
+			# if the highestCharge didn't reach the max value
+			# hence, restarting the lottery again.
+			activeUnit = undefined if highestCharge < 100
+			# prevent the loop from going forever 
+			# if no one won the lottery
+			break if highestCharge is 0
+		@trigger 'unitTurn', unit: activeUnit
+
+	reset: ->
+		@users = []
+		@units = []
+
+
+
+
+# ===========================
+# Units
+# ===========================
 
 class Unit extends Model
 
+	stats: new Model()
 	constructor: (unitCode) ->
 		super()
 		@set code: unitCode
 		unitCode = @get 'code'
-		unitStats = @getUnitStatsByCode unitCode
-		@set unitStats
+		unitStats = Wol.UnitStats[unitCode]
+		@set
+			name: unitStats.name
+		@stats.set unitStats.stats
 		return
 
-	getUnitStatsByCode: (unitCode) ->
-		Wol.UnitStats[unitCode]
+	getStat: (statName) ->
+		@stats.get statName
 
+	
 # =========================================
 # Server Api
 # =========================================
@@ -145,6 +252,24 @@ ServerProtocol =
 
 	createRoom: (roomName) ->
 		room = new Room name: roomName
+		roomId = room.id
+		room.bind 'readyUsers', (event) ->
+			switch event.type
+				when 'move'
+					# calculate the next turn
+					ServerProtocol.nextUnitTurn roomId
+
+		room.bind 'unitTurn', (event) ->
+			unit = event.unit
+			unitId = unit.id
+			userId = unit.get 'userId'
+			user =  room.getUserById userId
+			message = "#{roomName}: #{user.get 'name'}'s #{unit.get 'name'} is taking its turn."
+			room.set activeUnit: unit
+			room.announce 'unitTurn',
+				unitId: unitId
+				message: message
+			console.log message
 		ServerData.rooms.push room
 		room
 	
@@ -176,11 +301,16 @@ ServerProtocol =
 		user.set playerType: playerType
 
 		# spectators can only read from the system
-		ServerProtocol.assignEvents user if user.get 'playerType' is PlayerType.PLAYER
+		if user.get('playerType') is PlayerType.PLAYER
+			console.log 'playertype go assign yours hit!'
+			ServerProtocol.assignEvents userId, roomId
 
 		# when the user disconnects, remove him from the list
 		socket.on 'disconnect', ->
 			room.removeUser user
+			if room.users.length is 0
+				room.reset()
+				return
 			room.announce 'removeUser',
 				roomId: roomId
 				userId: userId
@@ -224,19 +354,10 @@ ServerProtocol =
 			unitId: unit.id
 			roomId: room.id
 			points: [
-				{ tileX: 2, tileY: 2 }
-				{ tileX: 3, tileY: 2 }
-				{ tileX: 4, tileY: 2 }
-				{ tileX: 4, tileY: 3 }
-				{ tileX: 4, tileY: 4 }
-				{ tileX: 4, tileY: 5 }
-				{ tileX: 4, tileY: 6 }
-				{ tileX: 3, tileY: 6 }
-				{ tileX: 2, tileY: 6 }
-				{ tileX: 1, tileY: 6 }
+				{ tileX: 3, tileY: 3 }
 			]
 		return
-	
+
 	addUnit: (data) ->
 		{unitCode} = data
 		{roomId} = data
@@ -250,7 +371,7 @@ ServerProtocol =
 			unitCode: unit.get 'code'
 			unitName: unit.get 'name'
 			message: "#{user.get 'name'}'s #{unit.get 'name'} has been deployed to #{room.get 'name'}."
-			unitStats: unit.get 'stats'
+			unitStats: unit.stats.attributes
 		unit
 
 	moveUnit: (data) ->
@@ -273,9 +394,18 @@ ServerProtocol =
 			unitId: unitId
 			points: points
 
-		
-	assignEvents: (user) ->
+	nextUnitTurn: (roomId) ->
+		room = ServerProtocol.getRoomById roomId
+		room.getNextTurn()
+
+	assignEvents: (userId, roomId) ->
+		room = ServerProtocol.getRoomById roomId
+		user = room.getUserById userId
 		socket = user.get 'socket'
+		socket.on 'moveUnitEnd', (data) ->
+			{unitId} = data
+			room.trigger 'moveUnitEnd', unitId: unitId
+			return
 		return
 
 

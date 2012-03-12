@@ -15,29 +15,30 @@ class Wol.Events.EventDispatcher
 		@e or= {}
 		@e[name] or= []
 		@e[name].push callback
-		return
+		this
 
 	unbind: (name, callback) ->
 		return if !@e
 		if arguments.length is 0
 			@e = {}
-			return
+			return this
 
-		return if !@e[name]
+		return this if !@e[name]
 
 		if !callback
 			delete @e[name]
-			return
+			return this
 
 		index = @e[name].indexOf callback
 		@e[name].splice index, 1
-		return
+		return this
 
 	trigger: (name, data) ->
-		return if !@e
-		return if !@e[name]
+		return this if !@e
+		return this if !@e[name]
 		@e[name].forEach (event) ->
 			event data if event?
+		this
 
 ## A basic data structure for the app
 class Wol.Models.Model extends Wol.Events.EventDispatcher
@@ -62,21 +63,23 @@ class Wol.Models.Model extends Wol.Events.EventDispatcher
 
 class Wol.Views.View extends Wol.Events.EventDispatcher
 
+	model: new Wol.Models.Model()
 	constructor: (options) ->
 		window.implement this, options
+		@model or= new Wol.Models.Model()
 		@init options
 
 	set: (props) ->
-		@model or= new Wol.Models.Model
 		@model.set props
 		this
 
 	get: (name) ->
-		@model or= new Wol.Models.Model
 		@model.get name
 
 class Wol.Collections.Collection extends Wol.Events.EventDispatcher
 
+	collections: []
+	total: []
 	constructor: (collections) ->
 		@collections = []
 		@total = 0

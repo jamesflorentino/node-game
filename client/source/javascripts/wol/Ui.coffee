@@ -82,6 +82,7 @@ class Ui.UnitInfo extends Wol.Views.View
 		@ep.data 'oWidth', @ep.find('.bar').width()
 		@ap.data 'oWidth', @ap.find('.bar').width()
 		@tp.data 'oWidth', @tp.find('.bar').width()
+		@el.hide()
 		return
 
 	show: (attributes) ->
@@ -113,6 +114,7 @@ class Ui.TurnList extends Wol.Views.View
 		@logs = @el.find '.logs'
 		@template = ->
 			$('#tpl-turnlist').html()
+		@el.hide()
 		return
 
 	generate: (list) ->

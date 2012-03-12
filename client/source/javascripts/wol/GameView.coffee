@@ -27,8 +27,8 @@ window.debug = true
 class Renderer extends Wol.Views.View
 	init: ->
 		@canvas = document.getElementById('game').getElementsByTagName('canvas')[0]
-		@canvas.width = 980
-		@canvas.height = 700
+		@canvas.width = Wol.Settings.gameWidth
+		@canvas.height = Wol.Settings.gameHeight
 		@stage = new Stage @canvas
 		@pause()
 		Ticker.addListener tick: => @render()
@@ -67,11 +67,13 @@ class GameUi extends Renderer
 			background: new Bitmap Wol.getAsset 'background'
 			terrain: new Bitmap Wol.getAsset 'terrain'
 			hexContainer: new Wol.Views.HexContainer()
+			hexLine: new Wol.Views.HexLineContainer()
 			unitContainer: new Wol.Views.UnitContainer()
 			viewport: new Container()
 
 		@elements.viewport.addChild @elements.terrain
 		@elements.viewport.addChild @elements.hexContainer.el
+		@elements.viewport.addChild @elements.hexLine.el
 		@elements.viewport.addChild @elements.unitContainer.el
 
 		# Initiate the UI elements
@@ -117,18 +119,19 @@ class Wol.Views.GameView extends GameUi
 		@model.bind 'startGame', @startGame
 		@model.bind 'addUnit', @addUnit
 		@model.bind 'moveUnit', @moveUnit
+		@model.bind 'unitTurn', @unitTurn
 		@model.connect()
 		@startGame()
 		this
 	
 	startGame: =>
 		@play()
-		return
+		this
 
 	addUnit: (data) =>
 		console.log 'addUnit', data
-		unitId = data.unitId
-		unitCode = data.unitCode
+		{unitId} = data
+		{unitCode} = data
 		unit = @elements.unitContainer.createUnitByCode unitCode
 		unit.set data
 		@elements.unitContainer.addUnit unit
@@ -138,6 +141,27 @@ class Wol.Views.GameView extends GameUi
 		unitId = data.unitId
 		unit = @elements.unitContainer.getUnitById unitId
 		tiles = @elements.hexContainer.getTilesByPoints data.points
+		unit.bind 'moveUnitEnd', =>
+			@elements.hexLine.clear()
+			tiles.forEach (tile) ->
+				tile.hide()
+			@model.send 'moveUnitEnd',
+				unitId: unitId
 		unit.move tiles
+		@elements.hexLine.start tiles[0].x, tiles[0].y
+		tiles.forEach (tile) =>
+			@elements.hexLine.to tile.x, tile.y
+			tile.show()
 		this
 
+	unitTurn: (data) =>
+		console.log 'unitTurn', data
+		{unitId} = data
+		{message} = data
+		unit = @elements.unitContainer.getUnitById unitId
+		tileX = unit.get 'tileX'
+		tileY = unit.get 'tileY'
+		hex = @elements.hexContainer.getHexByTilePosition  tileX, tileY
+		console.log hex
+		hex.show()
+		return

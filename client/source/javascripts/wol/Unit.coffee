@@ -44,10 +44,13 @@ Units = Wol.Units
 # Unit Class
 class Wol.Views.Unit extends Wol.Views.View
 
+	commands: null
+	walkSpeed: 100
+	el: new Container()
 	init: ->
 		@el = new Container()
 		@walkSpeed = 100
-		@commands = new Wol.Models.Commands
+		@commands = new Wol.Models.Commands()
 		this
 		
 	resetCharge: ->
@@ -63,12 +66,12 @@ class Wol.Views.Unit extends Wol.Views.View
 	stand: -> @onStand()
 
 	move: (tiles) ->
+		tiles = [].concat tiles
 		if @get('tileX') is undefined and @get('tileY') is undefined
 			@setTilePosition tiles[0].tileX, tiles[0].tileY
 			@el.x = tiles[0].x
 			@el.y = tiles[0].y
-			test = tiles.splice 0, 1
-			console.log tiles, test
+			tiles.splice 0, 1
 		@moveThroughTiles tiles
 		this
 
@@ -112,7 +115,7 @@ class Wol.Views.Unit extends Wol.Views.View
 	onStand: -> this
 	onMove: -> @trigger 'move'
 	onMoveStart: -> this
-	onMoveEnd: -> @trigger 'moveEnd'
+	onMoveEnd: -> @trigger 'moveUnitEnd'
 	onSpawn: -> this
 	onHit: -> this
 	onDefend: -> this

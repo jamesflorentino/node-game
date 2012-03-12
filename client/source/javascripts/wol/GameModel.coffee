@@ -19,7 +19,13 @@ class Wol.Models.GameModel extends Wol.Models.Model
 		@socket = io.connect HOST
 		@bindEvents()
 		@setUserName ['James','Doris','Chloe','Blaise','Rico','Patrick'].random()
+		this
 
+	send: (eventName, data) ->
+		console.log 'sending', eventName, data
+		@socket.emit eventName, data
+		this
+	
 	bindEvents: ->
 		@socket.on 'connect', (data) =>
 			@trigger 'connect', data
@@ -54,6 +60,9 @@ class Wol.Models.GameModel extends Wol.Models.Model
 
 		@socket.on 'moveUnit', (data) =>
 			@trigger 'moveUnit', data
+
+		@socket.on 'unitTurn', (data) =>
+			@trigger 'unitTurn', data
 
 	setUserName: (userName) ->
 		@socket.emit 'setUserName',

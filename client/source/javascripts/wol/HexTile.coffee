@@ -207,8 +207,6 @@ class Wol.Views.HexTile extends Wol.Views.View
 		@tileID = "#{@tileX}|#{@tileY}"
 		@el.x		= width * @tileX
 		@el.y		= (height - offsetY) * @tileY
-		@width	= width
-		@height = height
 		@el.x += offsetX if @tileY % 2
 		@x = @el.x + width * 0.5
 		@y = @el.y + height * 0.5
@@ -254,7 +252,7 @@ class Wol.Views.HexTile extends Wol.Views.View
 		return
 
 	show: (mode = 'move') ->
-		@el.visible			= true
+		@el.visible = true
 		@__hideTiles()
 		switch mode
 			when 'act'
