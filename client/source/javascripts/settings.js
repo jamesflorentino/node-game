@@ -25,7 +25,7 @@ Wol.AssetList = [
 
 Wol.Settings = {
 	gameWidth: 980,
-	gameHeight: 700,
+	gameHeight: 600,
   terrainX: -60,
   terrainY: 150,
   columns: 8,

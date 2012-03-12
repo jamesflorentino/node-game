@@ -1,0 +1,6 @@
+{
+	"title": "My awesomwe website",
+	"scripts": [
+		"lib/easel.js"
+	]
+}

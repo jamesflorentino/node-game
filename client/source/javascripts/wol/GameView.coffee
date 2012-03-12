@@ -79,11 +79,14 @@ class GameUi extends Renderer
 		# Initiate the UI elements
 		# putting them into a namespace will make it easy to remember
 		@ui =
+			console: new Wol.Ui.Console()
+			###
 			cancelButton: new Wol.Ui.CancelButton()
 			commandList: new Wol.Ui.CommandList()
 			unitInfo: new Wol.Ui.UnitInfo()
 			turnList: new Wol.Ui.TurnList()
 			actionMenu: new Wol.Ui.ActionMenu()
+			###
 		# add the elements to the stage
 		# for `View` instances, they should have an `@el` property
 		# which is a `Container` instance from EaselJS.
@@ -117,6 +120,7 @@ class Wol.Views.GameView extends GameUi
 		@buildUserInterface().setConfigurations()
 		@useRAF()
 		@model.bind 'startGame', @startGame
+		@model.bind 'addUser', @addUser
 		@model.bind 'addUnit', @addUnit
 		@model.bind 'moveUnit', @moveUnit
 		@model.bind 'unitTurn', @unitTurn
@@ -128,8 +132,12 @@ class Wol.Views.GameView extends GameUi
 		@play()
 		this
 
+	addUser: (data) =>
+		@ui.console.log data.message
+		this
+
 	addUnit: (data) =>
-		console.log 'addUnit', data
+		@ui.console.log data.message
 		{unitId} = data
 		{unitCode} = data
 		unit = @elements.unitContainer.createUnitByCode unitCode
@@ -138,6 +146,7 @@ class Wol.Views.GameView extends GameUi
 		this
 	
 	moveUnit: (data) =>
+		@ui.console.log data.message
 		unitId = data.unitId
 		unit = @elements.unitContainer.getUnitById unitId
 		tiles = @elements.hexContainer.getTilesByPoints data.points
@@ -155,7 +164,7 @@ class Wol.Views.GameView extends GameUi
 		this
 
 	unitTurn: (data) =>
-		console.log 'unitTurn', data
+		@ui.console.log data.message
 		{unitId} = data
 		{message} = data
 		unit = @elements.unitContainer.getUnitById unitId

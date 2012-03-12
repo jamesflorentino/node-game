@@ -5,7 +5,7 @@
 # E-mail	: j@jamesflorentino.com
 # Github	: @jamesflorentino
 */
-var EventDispatcher, MAX_PLAYERS_PER_ROOM, MAX_USERS_PER_ROOM, Model, PORT, PlayerType, Room, ServerData, ServerProtocol, Unit, User, Wol, io, onConnect, randomId, testRoom, _,
+var EventDispatcher, MAX_PLAYERS_PER_ROOM, MAX_USERS_PER_ROOM, Model, PORT, PlayerType, Room, ServerData, ServerProtocol, Unit, User, Wol, after, io, onConnect, randomId, testRoom, _,
   __hasProp = Object.prototype.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
 
@@ -36,6 +36,10 @@ randomId = function(len) {
     id += chars.substr(index, 1);
   }
   return id;
+};
+
+after = function(ms, cb) {
+  return setTimeout(cb, ms);
 };
 
 EventDispatcher = (function() {
@@ -324,7 +328,9 @@ ServerProtocol = {
     room.bind('readyUsers', function(event) {
       switch (event.type) {
         case 'move':
-          return ServerProtocol.nextUnitTurn(roomId);
+          return after(1000, function() {
+            return ServerProtocol.nextUnitTurn(roomId);
+          });
       }
     });
     room.bind('unitTurn', function(event) {
@@ -425,6 +431,9 @@ ServerProtocol = {
       points: [
         {
           tileX: 3,
+          tileY: 3
+        }, {
+          tileX: 4,
           tileY: 3
         }
       ]

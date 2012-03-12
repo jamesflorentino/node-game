@@ -34,6 +34,8 @@ randomId = (len=10) ->
 		id += chars.substr index, 1
 	id
 
+after = (ms, cb) -> setTimeout cb, ms
+
 # =========================================
 # CLASSES
 # =========================================
@@ -257,7 +259,8 @@ ServerProtocol =
 			switch event.type
 				when 'move'
 					# calculate the next turn
-					ServerProtocol.nextUnitTurn roomId
+					after 1000, ->
+						ServerProtocol.nextUnitTurn roomId
 
 		room.bind 'unitTurn', (event) ->
 			unit = event.unit
@@ -355,6 +358,7 @@ ServerProtocol =
 			roomId: room.id
 			points: [
 				{ tileX: 3, tileY: 3 }
+				{ tileX: 4, tileY: 3 }
 			]
 		return
 

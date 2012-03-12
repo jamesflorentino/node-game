@@ -1,5 +1,19 @@
 Ui = Wol.Ui
 
+class Ui.Console extends Wol.Views.View
+
+	tpl: (data) ->
+		"""
+		<li>#{data.message}</li>
+		"""
+	init: ->
+		@el = $ "#console"
+		@logs = @el.find 'ul'
+		@logs.empty()
+	
+	log: (message) -> @logs.append @tpl message: message
+		
+
 
 class Ui.CancelButton extends Wol.Views.View
 
