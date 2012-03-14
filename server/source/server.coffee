@@ -394,9 +394,14 @@ ServerProtocol =
 			tileX: point.tileX
 			tileY: point.tileY
 
+		userName = user.get 'name'
+		unitName = unit.get 'name'
+		tileX = points[points.length-1].tileX
+		tileY=  points[points.length-1].tileY
 		room.announce 'moveUnit',
 			unitId: unitId
 			points: points
+			message: "#{user.get 'name'}'s #{unit.get 'name'} is moving to hex(#{tileX}, #{tileY})"
 
 	nextUnitTurn: (roomId) ->
 		room = ServerProtocol.getRoomById roomId

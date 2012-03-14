@@ -188,93 +188,83 @@ getSouthEast = (x, y, radius, skipIteration) ->
 		break if skipIteration
 	tiles
 
-
-
 width = 126
 height = 86
 offsetX = 63
 offsetY = 22
 
+WIDTH = 126
+HEIGHT = 86
+OFFSETX = 63
+OFFSETY = 22
 
-class Wol.Views.HexTile extends Wol.Views.View
 
-	init: ->
-		@__base	= new Bitmap Wol.getAsset 'hex'
-		@__move = new Bitmap Wol.getAsset 'hex_move'
-		@__act	= new Bitmap Wol.getAsset 'hex_act'
-		@__target = new Bitmap Wol.getAsset 'hex_act_target'
-		@el			= new Container()
-		@tileID = "#{@tileX}|#{@tileY}"
-		@el.x		= width * @tileX
-		@el.y		= (height - offsetY) * @tileY
-		@el.x += offsetX if @tileY % 2
-		@x = @el.x + width * 0.5
-		@y = @el.y + height * 0.5
+class Wol.Views.Hex extends Wol.Views.View
 
-		@el.addChild @__base
-		@el.addChild @__act
-		@el.addChild @__move
-		@el.addChild @__target
+	x: 0
+	y: 0
+	width: 126
+	height: 86
+	offsetX: 63
+	offsetY: 22
 
-		@hide()
+	# i overrode this one because we don't want the
+	# constuctor to assign the arguments as properties
+	# of the object class.
+	constructor: (options) ->
+		@show options
 
-		@cost = 1
-		return
-
-	select: (mode) ->
-		@show()
-		@selected = true
-		@__hideTiles()
-		switch mode
-			when 'act'
-				@__target.visible = true
-			else
-				@__move.visible = true
-		return
-
-	deselect: ->
-		@selected = false
-		@__base.visible = true
-		@__move.visible = false
-		@__target.visible = false
+	# self () options
+	# options accepts 2 kinds of attributes
+	# assetName - the bitmap asset of the targetted unit
+	# point - the tile object position
+	show: (options) ->
+		{assetName} = options
+		{point} = options
+		type = switch assetName
+			when 'move' then 'hex_move'
+			when 'act' then 'hex_act'
+			else 'hex'
+		@el = new Bitmap Wol.getAsset type
+		# the correct property should be `point.tileX` and `point.tileY`,
+		# but since I'm doing a pre-calculation of adjacent tiles, I should
+		# also check for the `point.x` and `point.y` properties.
+		@tileX = (if point.x is undefined then point.tileX else point.x)
+		@tileY = (if point.y is undefined then point.tileY else point.y)
+		@el.x = @width * @tileX
+		@el.y = (@height - @offsetY) * @tileY
+		@el.x += @offsetX if @tileY % 2
+		@x = @el.x + @width * 0.5
+		@y = @el.y + @height * 0.5
+		@id = "#{@tileX}_#{@tileY}"
+		@el.onClick = => @trigger 'click', this
+		this
 
 	hide: ->
 		@el.visible = false
-		@selected = false
-		@el.onClick = null
-		return
+		@trigger 'hide'
+		this
 
-	__hideTiles: ->
-		@__move.visible = false
-		@__base.visible = false
-		@__act.visible = false
-		@__target.visible = false
-		return
-
-	show: (mode = 'move') ->
-		@el.visible = true
-		@__hideTiles()
-		switch mode
-			when 'act'
-				@__act.visible = true
+	getAdjacentPoints: (params) ->
+		radius = 1
+		format = 0 # 0 - array, 1 - string
+		if params?
+			radius = params.radius or radius
+			format = params.format or format
+		result = getAdjacentHexes @tileX, @tileY, radius
+		result or= []
+		switch format
+			when 1 # array with strings
+				return (->
+					arr = []
+					result.forEach (tile) ->
+						arr.push tile.id
+					arr
+				)()
 			else
-				@__base.visible	= true
-		return
+				return result
 
-	addUnit: (unit) ->
-		@units or= []
-		@units.push unit
-		return
+	click: (cb) -> @bind 'click', cb
 
-	removeUnit: (unit) ->
-		@units or= []
-		@units.splice(@units.indexOf(unit), 1)
-		return
-
-	getAdjacentHexPoints: (params) ->
-		params or= {}
-		radius = params.radius or 1
-		tiles = getAdjacentHexes @tileX, @tileY, radius
-		tiles or= []
 
 

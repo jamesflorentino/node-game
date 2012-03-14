@@ -34,26 +34,38 @@ class Wol.Views.HexContainer extends Wol.Views.View
 
 	addTilesByPoints: (points, assetName) ->
 		tiles = []
+		console.log points, assetName
 		points.forEach (point) =>
 			tile = @addTile point, assetName
 			tiles.push tile
 		tiles
 	
 	removeTiles: (tiles) ->
-		tiles.forEach (tile) => @removeTile tile
+		tiles.forEach (tile) =>
+			index = @tiles.indexOf tile
+			if index > -1
+				@el.removeChild tile.el
+				@tiles.splice index, 1
 		this
 
 	addTile: (point, assetName) ->
+		console.log 'addTile', point, assetName
 		hex = new Wol.Views.Hex
 			assetName: assetName
 			point: point
 		@tiles.push hex
 		@el.addChild hex.el
 		hex
+
+	getHexByTilePosition: (tileX, tileY) ->
+		hex
+
+	getTilesByPoints: (points) ->
+		tiles = []
+		points.forEach (point) =>
+			hex = @getTileByPoint point
+			tiles.push hex
+		tiles
 	
-	removeTile: (tile) ->
-		index = @tiles.indexOf tile
-		if index > -1
-			@el.removeChild tile.el
-			@tiles.splice index, 1
-		this
+	getTileByPoint: (point) ->
+		@__dict["tile_#{point.tileX or point.x}_#{point.tileY or point.y}"]

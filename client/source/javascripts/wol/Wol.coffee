@@ -66,14 +66,15 @@ class Wol.Views.View extends Wol.Events.EventDispatcher
 	model: new Wol.Models.Model()
 	constructor: (options) ->
 		window.implement this, options
-		@model or= new Wol.Models.Model()
 		@init options
 
 	set: (props) ->
+		@model or= new Wol.Models.Model()
 		@model.set props
 		this
 
 	get: (name) ->
+		@model or= new Wol.Models.Model()
 		@model.get name
 
 class Wol.Collections.Collection extends Wol.Events.EventDispatcher

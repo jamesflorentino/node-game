@@ -458,7 +458,7 @@ ServerProtocol = {
     return unit;
   },
   moveUnit: function(data) {
-    var point, points, room, roomId, unit, unitId, user, userId;
+    var point, points, room, roomId, tileX, tileY, unit, unitId, unitName, user, userId, userName;
     roomId = data.roomId;
     unitId = data.unitId;
     points = data.points;
@@ -472,9 +472,14 @@ ServerProtocol = {
       tileX: point.tileX,
       tileY: point.tileY
     });
+    userName = user.get('name');
+    unitName = unit.get('name');
+    tileX = points[points.length - 1].tileX;
+    tileY = points[points.length - 1].tileY;
     return room.announce('moveUnit', {
       unitId: unitId,
-      points: points
+      points: points,
+      message: "" + (user.get('name')) + "'s " + (unit.get('name')) + " is moving to hex(" + tileX + ", " + tileY + ")"
     });
   },
   nextUnitTurn: function(roomId) {

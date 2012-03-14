@@ -28,31 +28,19 @@ Wol.Units =
 
 Units = Wol.Units
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Unit Class
 class Wol.Views.Unit extends Wol.Views.View
 
 	commands: null
 	walkSpeed: 100
 	el: new Container()
+	height: 150
 	init: ->
 		@el = new Container()
 		@walkSpeed = 100
 		@commands = new Wol.Models.Commands()
 		this
-		
+
 	resetCharge: ->
 		@model.set charge: 0
 
@@ -62,6 +50,8 @@ class Wol.Views.Unit extends Wol.Views.View
 		@setTilePosition tileX, tileY
 		@resetCharge()
 		this
+	
+	getStat: (statName) -> @get('unitStats')[statName]
 
 	stand: -> @onStand()
 
@@ -142,6 +132,7 @@ class Wol.Views.AnimatedUnit extends Wol.Views.Unit
 class Wol.Views.Marine extends Wol.Views.AnimatedUnit
 
 	setAnimation: ->
+		@height = 125
 		@walkSpeed = 600
 		@frameDataName = 'marine'
 		@images = [
