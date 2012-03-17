@@ -50,3 +50,12 @@ class Ui.TopVignette extends Modal
 	init: ->
 		@el = $ "#top-vignette"
 
+class Ui.Confirm extends Modal
+
+	init: ->
+		@el = $ "#confirm-action"
+		@confirmButton = @el.find ".confirm"
+		@cancelButton = @el.find ".cancel"
+		@confirmButton.click => @trigger 'confirm'
+		@cancelButton.click => @trigger 'cancel'
+

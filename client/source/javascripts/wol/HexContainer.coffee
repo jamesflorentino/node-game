@@ -8,6 +8,11 @@ class Wol.Views.HexContainer extends Wol.Views.View
 		@background = new Container()
 		@__dict = []
 		@tiles = []
+		@set
+			move: undefined
+			selected: undefined
+			generated: undefined
+			adjacent: undefined
 		return
 
 	# generate a cached version of the tiles.
@@ -36,7 +41,7 @@ class Wol.Views.HexContainer extends Wol.Views.View
 		tiles = []
 		points.forEach (point) =>
 			tile = @addTile point, assetName
-			tiles.push tile
+			tiles.push tile if tile?
 		tiles
 	
 	removeTiles: (tiles) ->
@@ -44,6 +49,8 @@ class Wol.Views.HexContainer extends Wol.Views.View
 		this
 
 	addTile: (point, assetName) ->
+		return if (point.tileX or point.x) < 0 or (point.tileX or point.x) > Wol.Settings.columns
+		return if (point.tileY or point.y) < 0 or (point.tileY or point.y) > Wol.Settings.rows
 		hex = new Wol.Views.Hex
 			assetName: assetName
 			point: point
@@ -57,3 +64,5 @@ class Wol.Views.HexContainer extends Wol.Views.View
 			@el.removeChild tile.el
 			@tiles.splice index, 1
 		this
+	
+

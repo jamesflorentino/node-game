@@ -207,6 +207,9 @@ class Wol.Views.Hex extends Wol.Views.View
 	height: 86
 	offsetX: 63
 	offsetY: 22
+	cost: 1
+	tileX: 0
+	tileY: 0
 
 	# i overrode this one because we don't want the
 	# constuctor to assign the arguments as properties
@@ -266,5 +269,12 @@ class Wol.Views.Hex extends Wol.Views.View
 
 	click: (cb) -> @bind 'click', cb
 
+	getCoordinates: (tileX, tileY) ->
+		x = @width * tileX
+		y = (@height - @offsetY) * tileY
+		x += @offsetX if tileY % 2
+		x = x + @width * 0.5
+		y = y + @height * 0.5
+		x: x, y: y
 
 

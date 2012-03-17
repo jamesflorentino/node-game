@@ -37,8 +37,8 @@ class Wol.Models.GameModel extends Wol.Models.Model
 
 		@socket.on 'setUserName', (data) =>
 			@user.set
-				id: data.userid
-				name: data.username
+				userId: data.userId
+				userName: data.userName
 			@trigger 'setUserName', data
 			return
 
@@ -47,8 +47,8 @@ class Wol.Models.GameModel extends Wol.Models.Model
 			return
 
 		@socket.on 'addUser', (data) =>
-			@trigger 'addUser', data
 			@users.add new Wol.Models.Model(data)
+			@trigger 'addUser', data
 			return
 
 		@socket.on 'startGame', (data) =>

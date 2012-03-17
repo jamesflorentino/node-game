@@ -43,247 +43,254 @@ easeInOutBack = cubic-bezier(0.680, -0.550, 0.265, 1.550)
 
 // keyframes
 @keyframes showmenu
-	from
-		transform scaleY(0)
-	to
-		transform scaleY(1)
+  from
+    transform scaleY(0)
+  to
+    transform scaleY(1)
 
 @keyframes hidemenu
-	from
-		transform scaleY(1)
-	to
-		transform scaleY(0)
+  from
+    transform scaleY(1)
+  to
+    transform scaleY(0)
 
 // selectables
 .unselectable
-	user-select: none
+  user-select: none
 
 .sprite
-	background top left no-repeat url(../images/ui_menu.png)
+  background top left no-repeat url(../images/ui_menu.png)
 
 .button
-	@extend .unselectable
-	cursor pointer
-	text-transform uppercase
+  @extend .unselectable
+  cursor url(../images/cursor_hover.png)
+  text-transform uppercase
 
 .hidden
-	visibility hidden
+  visibility hidden
+
+.modal
+  &.active
+  &.hidden
+    visibility visible
+
+  &.active
+    animation showmenu easeOutCirc 400ms
+
+  &.hidden
+    animation hidemenu easeInCirc 300ms
+    transform scale(3,0)
 
 body
-	background #112
-	color #aaa
-	margin 0
-	padding 0
-	font 1em Play
-	color white
+  background #112
+  color #aaa
+  margin 0
+  padding 0
+  font 1em Play
+  color white
 
-	*
-		position relative
-		backface-visibility hidden
+  *
+    position relative
+    backface-visibility hidden
 
 #game
-	width 980px
-	height 600px
-	background #223
-	overflow hidden
-	position absolute
-	top 0
-	left 0
+  width 980px
+  height 600px
+  overflow hidden
+  position absolute
+  top 0
+  left 0
 
-	canvas
+  cursor:  url(../images/cursors.png)
+
+  &.move
+    cursor: url(../images/cursor_move.png) 20 20
+
+  canvas
 
 #ui
-	/**
-	position absolute
-	top 0
-	right 0
-	bottom 0 
-	left 0
-	/**/
-	position auto
+  /**
+  position absolute
+  top 0
+  right 0
+  bottom 0 
+  left 0
+  /**/
+  position auto
 
 #console
-	background rgba(2,2,2,0.35)
-	width 400px
-	height 100px
-	border 1px solid rgba(0,255,255,0.3)
-	border-radius 4px
-	box-shadow 0 0 5px 1px rgba(1,1,1,0.5) inset
-	font-size 90%
-	position absolute
-	bottom 1px
-	margin 10px
-	transition 500ms 20ms easeInOutQuint
+  background rgba(2,2,2,0.35)
+  width 400px
+  height 100px
+  border 1px solid rgba(0,255,255,0.3)
+  border-radius 4px
+  box-shadow 0 0 5px 1px rgba(1,1,1,0.5) inset
+  font-size 90%
+  position absolute
+  bottom 1px
+  margin 10px
+  transition 500ms 20ms easeInOutQuint
 
-	&.hidden
-		visibility: visible
-		transform translateY(120px)
+  &.hidden
+    visibility: visible
+    transform translateY(120px)
 
-	ul
-		position absolute
-		top 0 
-		right 0 
-		bottom 0 
-		left 0
-		overflow auto
-		margin 10px
-		padding 0
-		display block
+  ul
+    position absolute
+    top 0 
+    right 0 
+    bottom 0 
+    left 0
+    overflow auto
+    margin 10px
+    padding 0
+    display block
 
-		li
-			cursor default
-			transition color 100ms
-			display block
-			margin 0
-			padding 0
-			color rgba(0,255,255,0.5)
-			&:hover
-				color cyan
+    li
+      cursor default
+      transition color 100ms
+      display block
+      margin 0
+      padding 0
+      color rgba(0,255,255,0.5)
+      &:hover
+        color cyan
 
 #unit-menu
-	width = 128px
-	height = 91px
-	width width
-	height height
-	margin-left width * -0.5
-	margin-top height * -0.5
-	background top left no-repeat
-	background-image url(../images/ui_menu.png)
-	font-size 12px
-	text-transform uppercase
-	color white
-	position absolute
+  @extend .modal
+  width = 128px
+  height = 91px
+  width width
+  height height
+  margin-left width * -0.5
+  margin-top height * -0.5
+  background top left no-repeat
+  background-image url(../images/ui_menu.png)
+  font-size 12px
+  text-transform uppercase
+  color white
+  position absolute
 
-	&.active
-		animation showmenu easeInOutCirc 550ms
-		visibility visible
+  .move
+  .act
+  .skip
+    @extend .button
+    display block
+    position absolute
+    width 46px
+    height 46px
+    line-height 46px
+    text-align center
+    margin-top -17px
+    background top left no-repeat
 
-	&.hidden
-		animation hidemenu easeInOutCirc 550ms
-		transform scaleY(0)
-		visibility visible
+    &:hover
+      background-image url(../images/ui_menu.png)
 
-	.move
-	.act
-	.skip
-		@extend .unselectable
-		display block
-		position absolute
-		width 46px
-		height 46px
-		line-height 46px
-		text-align center
-		margin-top -17px
-		cursor pointer
-		background top left no-repeat
+  .move
+    top 40px
+    left 3px
+    background-position -1px -89px
 
-		&:hover
-			background-image url(../images/ui_menu.png)
+  .act
+    top 16px
+    left 41px
+    background-position -1px -131px
 
-	.move
-		top 40px
-		left 3px
-		background-position -1px -89px
-
-	.act
-		top 16px
-		left 41px
-		background-position -1px -131px
-
-	.skip
-		top 40px
-		left 79px
-		background-position -52px -90px
+  .skip
+    top 40px
+    left 79px
+    background-position -52px -90px
 
 #cancel-button
-	@extend .sprite
-	@extend .button
-	width 145px
-	height 47px
-	margin-left -72px
-	left 50%
-	top 35px
-	background-position 0px -179px
-	color white
-	z-index 1
-	position absolute
-	transition 500ms 10ms easeInOutBack
+  @extend .sprite
+  @extend .button
+  width 145px
+  height 47px
+  margin-left -72px
+  left 50%
+  top 35px
+  background-position 0px -179px
+  color white
+  z-index 1
+  position absolute
+  transition 500ms 10ms easeInOutBack
 
-	&.hidden
-		visibility visible
-		transform translateY(-85px)
+  &.hidden
+    visibility visible
+    transform translateY(-85px)
 
-	*
-		cursor pointer
+  .icon
+    transition 200ms
+    transform scale(0)
+    opacity 0
 
-	.icon
-		transition 200ms
-		transform scale(0)
-		opacity 0
+  &:hover .icon
+    transform scale(1)
+    opacity 1
+  
+  height = 47px
 
-	&:hover .icon
-		transform scale(1)
-		opacity 1
-	
-	height = 47px
-
-	.button
-		font-size 14px
-		font-weight bold
-		height height
-		line-height height - 2
-		text-indent 30px
-		text-shadow 0 2px 2px rgba(0,0,0,0.8)
-	
-	.icon
-		@extend .sprite
-		width 46px
-		height 37px
-		background-position -97px -134px
-		position absolute
-		top 3px
-		right 3px
+  .button
+    font-size 14px
+    font-weight bold
+    height height
+    line-height height - 2
+    text-indent 30px
+    text-shadow 0 2px 2px rgba(0,0,0,0.8)
+  
+  .icon
+    @extend .sprite
+    width 46px
+    height 37px
+    background-position -97px -134px
+    position absolute
+    top 3px
+    right 3px
 
 
 #top-vignette
-	background rgba(1,1,1,0.5)
-	height 120px
-	width 100%
-	position absolute
-	top 1px
-	transition 400ms easeInOutQuint
-	&.hidden
-		transform translateY(-120px)
+  background rgba(1,1,1,0.5)
+  height 120px
+  width 100%
+  position absolute
+  top 1px
+  transition 400ms easeInOutQuint
+  &.hidden
+    transform translateY(-120px)
 
 #confirm-action
-	@extend .sprite
-	width 92px
-	height 69px
-	background-position 0px -230px
+  @extend .sprite
+  @extend .modal
+  width 92px
+  height 69px
+  background-position 0px -230px
+  position absolute
+  margin-left -33px
+  margin-top -25px
 
-	.button
-		@extend .sprite
-		position absolute
-		text-indent 100em
-		width 20px
-		height 20px
-		z-index 2
-		transition 400ms easeOutQuint
-		transform scale(1.3,1.3)
-		&:hover
-			opacity 1
-			transform scale(1,1)
+  .button
+    @extend .sprite
+    position absolute
+    text-indent 100em
+    width 20px
+    height 20px
+    z-index 2
+    transition 400ms easeOutQuint
+    transform scale(1.3,1.3)
+    &:hover
+      transform scale(1,1)
 
-	.confirm
-		width 45px
-		height 39px
-		top 10px
-		left 10px
-		background-position -99px -229px
+  .confirm
+    width 45px
+    height 39px
+    top 10px
+    left 10px
+    background-position -99px -229px
 
-	.cancel
-		width 29px
-		height 26px
-		top 36px
-		left 54px
-		background-position -107px -272px
+  .cancel
+    width 29px
+    height 26px
+    top 36px
+    left 54px
+    background-position -107px -272px
