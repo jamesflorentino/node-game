@@ -41,6 +41,12 @@ easeInBack = cubic-bezier(0.600, -0.280, 0.735, 0.045)
 easeOutBack = cubic-bezier(0.175,  0.885, 0.320, 1.275)
 easeInOutBack = cubic-bezier(0.680, -0.550, 0.265, 1.550)
 
+offset(t,r,b,l)
+  top t
+  right r
+  bottom b
+  left l
+
 // keyframes
 @keyframes showmenu
   from
@@ -63,7 +69,7 @@ easeInOutBack = cubic-bezier(0.680, -0.550, 0.265, 1.550)
 
 .button
   @extend .unselectable
-  cursor url(../images/cursor_hover.png)
+  cursor url(../images/cursor_action.png) 10 9
   text-transform uppercase
 
 .hidden
@@ -78,7 +84,7 @@ easeInOutBack = cubic-bezier(0.680, -0.550, 0.265, 1.550)
     animation showmenu easeOutCirc 400ms
 
   &.hidden
-    animation hidemenu easeInCirc 300ms
+    animation hidemenu easeInCirc 100ms
     transform scale(3,0)
 
 body
@@ -98,6 +104,8 @@ body
   height 600px
   overflow hidden
   position absolute
+  background black
+  background-image url(../images/background_mars.png)
   top 0
   left 0
 
@@ -294,3 +302,58 @@ body
     top 36px
     left 54px
     background-position -107px -272px
+
+#curtain
+  position absolute
+  z-index 99
+  top 0
+  left 0
+  right 0
+  background rgba(1,1,1,0.95)
+  transition 1000ms
+
+  curtain_margin = 300px
+
+  .cover
+    background url(../images/curtain.png) top left no-repeat
+    height 350px
+    width 100%
+    position absolute
+    top curtain_margin
+    transition 900ms 400ms easeInOutQuint
+
+  .text
+    @extend .unselectable
+    position absolute
+    background url(../images/curtain.png) top left no-repeat
+    background-position 0 -700px
+    width 382px
+    height 56px
+    z-index 99
+    top curtain_margin
+    left 50%
+    margin-left -191px
+    margin-top -26px
+    text-align center
+    line-height 53px
+    text-transform uppercase
+    text-shadow 0 0 10px cyan
+    transition 400ms
+
+  .top
+    margin-top -350px
+
+  .bottom
+    background-position 0 -350px
+
+  &.hidden
+
+    visibility: visible
+
+    .top
+      transform translateY(-350px)
+    .bottom
+      transform translateY(350px)
+    .text
+      visibility hidden
+      transform scaleY(0)

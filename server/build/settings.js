@@ -27,8 +27,8 @@ Wol.AssetList = [
 Wol.Settings = {
   terrainX: -60,
   terrainY: 150,
-  columns: 8,
-  rows: 8
+  columns: 7,
+  rows: 7
 };
 
 Wol.UnitStats = {};

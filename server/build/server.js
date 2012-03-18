@@ -595,7 +595,8 @@ ServerProtocol = {
     return room.getNextTurn();
   },
   assignEvents: function(userId, roomId) {
-    var room, socket, user;
+    var room, socket, user,
+      _this = this;
     room = ServerProtocol.getRoomById(roomId);
     user = room.getUserById(userId);
     socket = user.get('socket');
@@ -604,8 +605,7 @@ ServerProtocol = {
       if (!data.unitId || !data.points) {
         return console.log("invalid unit and points", data);
       }
-      unitId = data.unitId;
-      points = data.points;
+      unitId = data.unitId, points = data.points;
       unit = room.getUnitById(unitId);
       if (!unit) return console.log("invalid unitId", unitId);
       if (room.get('activeUnit') !== unit) {
@@ -659,6 +659,13 @@ ServerProtocol = {
             activeUnit = room.get 'activeUnit'
             return if !activeUnit
       */
+    });
+    socket.on('skipTurn', function(data) {
+      var unit, unitId;
+      unitId = data.unitId;
+      unit = room.getUnitById(unitId);
+      if (unit !== room.get('activeUnit')) return;
+      return ServerProtocol.nextUnitTurn(roomId);
     });
   }
 };

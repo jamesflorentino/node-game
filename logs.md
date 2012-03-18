@@ -30,14 +30,16 @@
       unitId: "1a2b3c4d5e6f7"
     });
 
-9. **server** Before sending a `unitTurn` event from a Room, check first if there's an `activeUnit`. If one exists, then we should first check if the unit has some actions left. The unit will need to deplete all his Action Points. or Press the Skip button. Alternatively, we can also set a `.moved` and `.acted` property to the unit. This will prevent the unit from acting two moves or two unit actions.
+9. **server** Before sending a `unitTurn` event from a Room, check first if there's an `activeUnit`. If one exists, then we should first check if the unit has some actions left. The unit will need to deplete all his Action Points. or Press the Skip button. Alternatively, we can also set a `.moved` and `.acted` property to the unit. This will prevent the unit from acting two moves or two unit actions. (finished)
 
+10. **server/client** / start working on the attackUnit command
 
 ## Updates
 
 1. Finished the moveUnit implementation from server to client.
 2. When the player logs out and the room is empty, it will reset itself - removing any existing users and units from the room.
 3. Implemented a way to properly manage adjacent tile selection in the client.
+4. Implemented cancel action
 
 
 ## What I learned

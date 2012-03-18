@@ -1,13 +1,16 @@
 Wol.AssetList = [
   {
     name: 'background',
-    url: '/images/background.png'
+    url: '/images/background_mars.png'
   },{
     name: 'terrain',
-    url: '/images/terrain.png'
+    url: '/images/terrain_mars.png'
   },{
     name: 'hex',
     url: '/images/hex.png'
+  },{
+    name: 'hex_bg',
+    url: '/images/hex_bg.png'
   },{
     name: 'hex_move',
     url: '/images/hex_move.png'
@@ -24,12 +27,12 @@ Wol.AssetList = [
 ];
 
 Wol.Settings = {
-	gameWidth: 980,
-	gameHeight: 600,
-  terrainX: -60,
+  gameWidth: 980,
+  gameHeight: 600,
+  terrainX: 0,
   terrainY: 150,
-  columns: 8,
-  rows: 8
+  columns: 7,
+  rows: 7
 };
 
 Wol.UnitNames = {

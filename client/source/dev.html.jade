@@ -1,1 +1,6 @@
 extends layout
+append head
+  script
+    setTimeout(function(){
+      document.getElementById("curtain").className = "hidden";
+    }, 1000);

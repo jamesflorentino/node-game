@@ -58,12 +58,23 @@ class GameUi extends Renderer
 
   init: ->
     super()
-    @assetLoader = new Wol.AssetLoader
-    Wol.getAsset = (name) => @assetLoader.get name
+    @buildUserInterface()
     @elReady()
     this
 
   buildUserInterface: ->
+    # Initiate the UI elements
+    # putting them into a namespace will make it easy to remember
+    @ui =
+      console: new Wol.Ui.Console()
+      unitMenu: new Wol.Ui.UnitMenu()
+      cancelButton: new Wol.Ui.CancelButton()
+      confirm: new Wol.Ui.Confirm()
+      topVignette: new Wol.Ui.TopVignette()
+      curtain: new Wol.Ui.Curtain()
+    this
+
+  buildElements: ->
     # the layers of the rendering engine.
     # putting them into a namespace will make it easy to manage.
     @elements =
@@ -73,20 +84,10 @@ class GameUi extends Renderer
       hexLine: new Wol.Views.HexLineContainer()
       unitContainer: new Wol.Views.UnitContainer()
       viewport: new Container()
-
     @elements.viewport.addChild @elements.terrain
     @elements.viewport.addChild @elements.hexContainer.el
     @elements.viewport.addChild @elements.hexLine.el
     @elements.viewport.addChild @elements.unitContainer.el
-
-    # Initiate the UI elements
-    # putting them into a namespace will make it easy to remember
-    @ui =
-      console: new Wol.Ui.Console()
-      unitMenu: new Wol.Ui.UnitMenu()
-      cancelButton: new Wol.Ui.CancelButton()
-      confirm: new Wol.Ui.Confirm()
-      topVignette: new Wol.Ui.TopVignette()
     # add the elements to the stage
     # for `View` instances, they should have an `@el` property
     # which is a `Container` instance from EaselJS.
@@ -110,12 +111,14 @@ class GameUi extends Renderer
 class Wol.Views.GameView extends GameUi
 
   elReady: ->
+    @assetLoader = new Wol.AssetLoader
+    Wol.getAsset = (name) => @assetLoader.get name
     @assetLoader.download Wol.AssetList, @assetsReady
     return
 
   assetsReady: =>
     # once the assets are loaded, we can now build our user-interface
-    @buildUserInterface().setConfigurations()
+    @buildElements().setConfigurations()
     @useRAF() if navigator.appVersion.indexOf('Chrome') > -1
     @startGame()
     @model.bind 'startGame', @startGame
@@ -124,6 +127,7 @@ class Wol.Views.GameView extends GameUi
     @model.bind 'moveUnit', @moveUnit
     @model.bind 'unitTurn', @unitTurn
     @model.connect()
+    @ui.curtain.hide()
     this
   
   startGame: =>
@@ -184,7 +188,16 @@ class Wol.Views.GameView extends GameUi
     menuX = @elements.viewport.x + unitTile.x
     menuY = @elements.viewport.y + unitTile.y - unit.height
     @ui.unitMenu.show x: menuX, y: menuY
-    # MOVE EVENT ----------------------------------
+    # unit Menu Events
+    @ui.unitMenu.unbind()
+    # skip turn yo
+    @ui.unitMenu.bind 'skip', =>
+      @model.send 'skipTurn', unitId: unitId
+      @elements.hexContainer.removeTile unitTile
+      @ui.unitMenu.hide()
+      @ui.unitMenu.unbind()
+      return
+    # dispatched when the move event is clicked
     @ui.unitMenu.bind 'move', =>
       $("#game").addClass "move"
       unit.get('tiles') or unit.set tiles: {}
@@ -280,6 +293,7 @@ class Wol.Views.GameView extends GameUi
           )()
           tiles.adjacent = tile.getAdjacentPoints().map (p) -> "#{p.x}_#{p.y}" # assign the next set for cpu usage.
           @elements.hexLine.to tile.x, tile.y # draw the line
+          @ui.confirm.hide()
         return # tiles.move.forEach end
       return # end move event
     this # GameView.unitTurn

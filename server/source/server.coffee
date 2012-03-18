@@ -477,8 +477,7 @@ ServerProtocol =
     socket.on 'moveUnit', (data) ->
 
       return console.log("invalid unit and points", data) if !data.unitId or !data.points
-      {unitId} = data
-      {points} = data
+      {unitId, points} = data
       # cancel if the unit doesn't exist
       unit = room.getUnitById unitId
       return console.log("invalid unitId", unitId) if !unit
@@ -521,10 +520,8 @@ ServerProtocol =
       unit = room.getUnitById unitId
       return if unit is undefined
       return if userId isnt unit.get('userId')
-
       # temporary for now
       ServerProtocol.nextUnitTurn roomId
-
       ###
       user.set readyState: true
       usersReady = room.users.filter (u) -> u.get 'readyState'
@@ -533,6 +530,14 @@ ServerProtocol =
       activeUnit = room.get 'activeUnit'
       return if !activeUnit
       ###
+
+    socket.on 'skipTurn', (data) =>
+      {unitId} = data
+      unit = room.getUnitById unitId
+      # cancel if not the the active unit
+      return if unit isnt room.get('activeUnit')
+      # cancel
+      ServerProtocol.nextUnitTurn roomId
     return
 
 
