@@ -31,6 +31,10 @@ Wol.Settings = {
   rows: 7
 };
 
+
+// =====================================
+// Unit Stats
+// =====================================
 Wol.UnitStats = {};
 Wol.UnitStats['lemurian_marine'] = {
   name: 'Lemurian Marine',
@@ -43,8 +47,29 @@ Wol.UnitStats['lemurian_marine'] = {
     actions: 4,
     moveRadius: 3,
     charge: 100,
-		chargeSpeed: 10
+    chargeSpeed: 10
   }
 };
+
+// =====================================
+// Unit Commands
+// =====================================
+Wol.UnitCommands = {};
+Wol.UnitCommands['lemurian_marine'] = [
+  {
+    name: 'Pulse Rifle Shot',
+    code: 'marine_pulse_rifle_shot',
+    cost: 1,
+    type: 'linear',
+    radius: 3
+  },{
+    name: 'Frag Grenade',
+    code: 'marine_frag_grenade',
+    cost: 5,
+    type: 'radial',
+    radius: 5
+  }
+]
+
 
 exports.Wol = Wol

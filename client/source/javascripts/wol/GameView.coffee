@@ -34,11 +34,11 @@ class Renderer extends Wol.Views.View
     @stage = new Stage @canvas
     @pause()
     Ticker.addListener tick: => @render()
-    Ticker.setFPS 30
+    #Ticker.setFPS 30
   
   useRAF: ->
-    Ticker.useRAF = true
     Ticker.setFPS 30
+    Ticker.useRAF = true
     this
   
   play: ->
@@ -129,7 +129,7 @@ class Wol.Views.GameView extends GameUi
     @model.connect()
     @ui.curtain.hide()
     this
-  
+
   startGame: =>
     @play()
     this
@@ -139,6 +139,7 @@ class Wol.Views.GameView extends GameUi
     this
 
   addUnit: (data) =>
+    console.log 'addUnit', data
     @ui.console.log data.message
     {unitId, unitCode, tileX, tileY, face} = data
     unit = @elements.unitContainer.createUnitByCode unitCode
@@ -298,3 +299,4 @@ class Wol.Views.GameView extends GameUi
       return # end move event
     this # GameView.unitTurn
     # end unitTurn ---------------------------------------
+

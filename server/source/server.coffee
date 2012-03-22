@@ -110,14 +110,27 @@ class Collection extends Model
   initialize: ->
     @collection = []
 
-  add: (model) ->
-    @collection.push model
+  add: (data) ->
+    if data instanceof Array
+      data.forEach (item) =>
+        if item instanceof Model
+          @collection.push item
+        else
+          @collection.push(new Model(item))
+      return
+    @collection.push data
 
+  removeById: (id) ->
+    model = @collection.filter (item) -> item.id is id
+    @collection.splice @collection.indexOf(model), 1
+  
   remove: (model) ->
     @collection.splice(@collection.indexOf(model))
 
   find: (cb) -> (@collection.filter cb)[0]
 
+  getAttributes: ->
+    @collection.map (model) -> model.attributes
 
 # ===========================
 # User
@@ -239,15 +252,11 @@ class Room extends Model
     @users = []
     @units = []
 
-
-
-
 # ===========================
 # Units
 # ===========================
 
 class Unit extends Model
-
   constructor: (unitCode) ->
     super()
     unitStats = Wol.UnitStats[unitCode]
@@ -258,6 +267,9 @@ class Unit extends Model
       name: unitStats.name
     @stats = new Model()
     @stats.set unitStats.stats
+    unitCommands = Wol.UnitCommands[unitCode]
+    @commands = new Collection()
+    @commands.add unitCommands
 
   getStat: (statName) ->
     @stats.get statName
@@ -266,7 +278,7 @@ class Unit extends Model
     @set
       tileX: hex.get 'tileX'
       tileY: hex.get 'tileY'
-
+  
 # ===========================
 # Hex
 # ===========================
@@ -297,10 +309,6 @@ class HexGrid extends Collection
     return if !points.length
     points.map (point) =>
       @find (t) -> t.get('tileX') is point.tileX and t.get('tileY') is point.tileY
-
-
-
-
 
 # =========================================
 # Server Api
@@ -433,6 +441,7 @@ ServerProtocol =
       message: "#{user.get 'name'}'s #{unit.get 'name'} has been deployed to #{room.get 'name'}."
       face: face
       unitStats: unit.stats.attributes
+      unitCommands: unit.commands.getAttributes()
     unit
 
   moveUnit: (data) ->

@@ -157,8 +157,27 @@ Collection = (function(_super) {
     return this.collection = [];
   };
 
-  Collection.prototype.add = function(model) {
-    return this.collection.push(model);
+  Collection.prototype.add = function(data) {
+    var _this = this;
+    if (data instanceof Array) {
+      data.forEach(function(item) {
+        if (item instanceof Model) {
+          return _this.collection.push(item);
+        } else {
+          return _this.collection.push(new Model(item));
+        }
+      });
+      return;
+    }
+    return this.collection.push(data);
+  };
+
+  Collection.prototype.removeById = function(id) {
+    var model;
+    model = this.collection.filter(function(item) {
+      return item.id === id;
+    });
+    return this.collection.splice(this.collection.indexOf(model), 1);
   };
 
   Collection.prototype.remove = function(model) {
@@ -167,6 +186,12 @@ Collection = (function(_super) {
 
   Collection.prototype.find = function(cb) {
     return (this.collection.filter(cb))[0];
+  };
+
+  Collection.prototype.getAttributes = function() {
+    return this.collection.map(function(model) {
+      return model.attributes;
+    });
   };
 
   return Collection;
@@ -338,7 +363,7 @@ Unit = (function(_super) {
   __extends(Unit, _super);
 
   function Unit(unitCode) {
-    var unitStats;
+    var unitCommands, unitStats;
     Unit.__super__.constructor.call(this);
     unitStats = Wol.UnitStats[unitCode];
     this.set({
@@ -349,6 +374,9 @@ Unit = (function(_super) {
     });
     this.stats = new Model();
     this.stats.set(unitStats.stats);
+    unitCommands = Wol.UnitCommands[unitCode];
+    this.commands = new Collection();
+    this.commands.add(unitCommands);
   }
 
   Unit.prototype.getStat = function(statName) {
@@ -560,7 +588,8 @@ ServerProtocol = {
       unitName: unit.get('name'),
       message: "" + (user.get('name')) + "'s " + (unit.get('name')) + " has been deployed to " + (room.get('name')) + ".",
       face: face,
-      unitStats: unit.stats.attributes
+      unitStats: unit.stats.attributes,
+      unitCommands: unit.commands.getAttributes()
     });
     return unit;
   },
