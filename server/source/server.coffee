@@ -337,14 +337,14 @@ ServerProtocol =
         unitId: unitId
         message: message
       console.log message
-
+  
     ServerData.rooms.push room
     room
   
   getRoomById: (roomId) ->
     room = ServerData.rooms.filter (room) -> room.id is roomId
     room[0]
-
+  
   joinRoom: (user, room) ->
     return if room is undefined
     
@@ -354,16 +354,16 @@ ServerProtocol =
     roomName = room.get 'name'
     socket = user.get 'socket'
     playerType = PlayerType.PLAYER
-
+  
     # reject the user if the room is full
     if room.totalUsers > MAX_USERS_PER_ROOM
       user.announce 'roomError', message: 'Room is already full'
       return
-
+  
     # add the user to the room
     room.addUser user
     totalUsers = room.totalUsers
-
+  
     # set the player type to listen to the user's requests
     playerType = PlayerType.SPECTATOR if totalUsers > MAX_PLAYERS_PER_ROOM
     user.set playerType: playerType

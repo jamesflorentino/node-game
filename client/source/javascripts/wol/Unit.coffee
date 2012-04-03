@@ -28,6 +28,11 @@ Wol.Units =
 
 Units = Wol.Units
 
+
+
+class Wol.Models.Commands extends Wol.Collections.Collection
+  init: ->
+
 # Unit Class
 class Wol.Views.Unit extends Wol.Views.View
 
@@ -50,8 +55,8 @@ class Wol.Views.Unit extends Wol.Views.View
     @setTilePosition tileX, tileY
     @resetCharge()
     this
-  
-  getStat: (statName) -> @get('unitStats')[statName]
+
+  getStat: (statName) -> @get statName
 
   stand: -> @onStand()
 
@@ -139,9 +144,6 @@ class Wol.Views.Marine extends Wol.Views.AnimatedUnit
     @images = [
       Wol.getAsset 'marine'
     ]
-    @commands.add
-      name: 'Pulse Rifle Shot'
-      code: 'marine_pulserifleshot'
     @el.regX = 30
     @el.regY = 87
     super()

@@ -18,7 +18,7 @@ class Wol.Events.EventDispatcher
     this
 
   unbind: (name, callback) ->
-    return if !@e
+    return this if !@e
     if arguments.length is 0
       @e = {}
       return this
@@ -89,14 +89,18 @@ class Wol.Collections.Collection extends Wol.Events.EventDispatcher
     return if collections.length is undefined
     return
 
+  __addToList: (item) ->
+    if item instanceof Wol.Models.Model
+      @collections.push item
+    else
+      @collections.push new Wol.Models.Model(item)
+    @total = @collections.length
+
   add: (params) ->
     if params instanceof Array
-      params.forEach (item) ->
-        @collections.push item
-        return
+      params.forEach (item) => @__addToList item
       return
-    item = params
-    @collections.push item
+    @__addToList params
     return this
 
   find: (callback) ->

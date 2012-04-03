@@ -34,11 +34,11 @@ class Renderer extends Wol.Views.View
     @stage = new Stage @canvas
     @pause()
     Ticker.addListener tick: => @render()
-    #Ticker.setFPS 30
+    Ticker.setFPS 30
   
   useRAF: ->
-    Ticker.setFPS 30
     Ticker.useRAF = true
+    Ticker.setFPS 30
     this
   
   play: ->
@@ -72,6 +72,7 @@ class GameUi extends Renderer
       confirm: new Wol.Ui.Confirm()
       topVignette: new Wol.Ui.TopVignette()
       curtain: new Wol.Ui.Curtain()
+      commandList: new Wol.Ui.CommandList()
     this
 
   buildElements: ->
@@ -139,11 +140,22 @@ class Wol.Views.GameView extends GameUi
     this
 
   addUnit: (data) =>
-    console.log 'addUnit', data
     @ui.console.log data.message
-    {unitId, unitCode, tileX, tileY, face} = data
+    {userId, unitId, unitCode, unitName, tileX, tileY, face} = data
+    {unitStats, unitCommands} = data
     unit = @elements.unitContainer.createUnitByCode unitCode
-    unit.set data
+    unit.set
+      tileX: tileX
+      tileY: tileY
+      unitCode: unitCode
+      unitId: unitId
+      unitName: unitName
+      userId: userId
+
+    unit.set unitStats
+    unit.commands.add unitCommands
+
+    unit.flip('left') if face is 'left'
     @elements.unitContainer.addUnit unit
     tile = Wol.Views.Hex::getCoordinates tileX, tileY
     unit.el.x = tile.x
@@ -191,14 +203,20 @@ class Wol.Views.GameView extends GameUi
     @ui.unitMenu.show x: menuX, y: menuY
     # unit Menu Events
     @ui.unitMenu.unbind()
-    # skip turn yo
+
+    # -----------------------------------------------------------------
+    # ACTION: SKIP UNIT TURN
+    # -----------------------------------------------------------------
     @ui.unitMenu.bind 'skip', =>
       @model.send 'skipTurn', unitId: unitId
       @elements.hexContainer.removeTile unitTile
       @ui.unitMenu.hide()
       @ui.unitMenu.unbind()
       return
-    # dispatched when the move event is clicked
+
+    # -----------------------------------------------------------------
+    # ACTION: MOVE UNIT
+    # -----------------------------------------------------------------
     @ui.unitMenu.bind 'move', =>
       $("#game").addClass "move"
       unit.get('tiles') or unit.set tiles: {}
@@ -273,7 +291,6 @@ class Wol.Views.GameView extends GameUi
       # assign a click handler for the movable tiles.
       tiles.move.forEach (tile) =>
         tile.click =>
-          console.log 'click tile', tile.id
           # cancel if already in this list
           return if tiles.selected.indexOf(tile) > -1
           # cancel if not an adjacent tile
@@ -298,5 +315,23 @@ class Wol.Views.GameView extends GameUi
         return # tiles.move.forEach end
       return # end move event
     this # GameView.unitTurn
-    # end unitTurn ---------------------------------------
+    # -----------------------------------------------------------------
+    # ACTION: MOVE UNIT
+    # -----------------------------------------------------------------
+    @ui.unitMenu.bind 'act', =>
+      commands = unit.commands.collections.map (item) -> item.attributes
+      # initialize
+      @ui.commandList.show x: menuX, y: menuY
+      @ui.topVignette.show()
+      @ui.cancelButton.show()
+      @ui.unitMenu.hide()
+      # when show the commands and assign event handlers to them
+      @ui.commandList.generate commands
+      @ui.commandList.bind 'command', (data) ->
 
+        # etc
+      @ui.cancelButton.unbind().bind 'cancel', =>
+        @ui.topVignette.hide()
+        @ui.cancelButton.hide()
+        @ui.commandList.hide()
+        @ui.unitMenu.show()

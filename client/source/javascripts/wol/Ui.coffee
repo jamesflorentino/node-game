@@ -65,3 +65,24 @@ class Ui.Curtain extends Modal
 
   hide: ->
     super()
+
+class Ui.CommandList extends Modal
+  init: ->
+    @el = $ "#command-list"
+    @list = @el.find 'ul'
+    @tpl = (data) ->
+      """
+      <li>
+        <span>#{data.name}</span>
+        <div class="cost">#{data.cost}</div>
+      </li>
+      """
+
+  generate: (list) ->
+    @list.empty()
+    list.forEach (item, i) =>
+      li = $ @tpl
+        name: item.name
+        cost: item.cost
+      li.click => @trigger 'command', item
+      @list.append li

@@ -357,3 +357,62 @@ body
     .text
       visibility hidden
       transform scaleY(0)
+
+#command-list
+  @extend .modal
+  width 180px
+  position absolute
+  z-index: 99
+
+  .title
+    text-transform uppercase
+    text-shadow 0 0 5px rgba(0,255,250,0.75)
+    font-weight bold
+    font-size 12px
+    color #0cc8c3
+    padding 8px 0 8px 0
+    background rgba(1,1,1,0.8)
+    display block
+    text-indent 15px
+
+  ul
+    background rgba(1,1,1,0.65)
+    border-top 3px solid #0cc8c3
+    border-bottom 3px solid #0cc8c3
+    display block
+    margin 0
+    padding 5px
+
+    li
+      margin 0
+      padding 0
+      display block
+      border 1px solid #0cc8c3
+      color rgba(200,255,250,0.75)
+      background rgba(13, 45, 48, 0.5)
+      font-size 12px
+      text-transform uppercase
+      font-weight bold
+      padding 4px 0 4px 0
+      text-indent 10px
+      box-shadow 0px 2px 4px black inset
+      transition 200ms 
+      position relative
+
+      span
+        text-shadow 0 0 5px rgba(0,255,250,0.75)
+
+      .cost
+        position absolute
+        top 5px
+        right 5px
+        color #ffba00
+
+      &:hover
+        color rgba(255,255,255,0.8)
+        background rgba(13, 45, 48, 0.85)
+        background rgba(13, 45, 48, 1)
+        box-shadow none
+
+        span
+          text-shadow 0 0 5px rgba(0,255,250,0.75)
