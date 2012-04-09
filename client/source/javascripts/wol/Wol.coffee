@@ -106,3 +106,5 @@ class Wol.Collections.Collection extends Wol.Events.EventDispatcher
   find: (callback) ->
     result = @collections.filter callback
     result[0]
+
+  each: (callback) -> @collections.each callback

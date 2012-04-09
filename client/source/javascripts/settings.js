@@ -18,6 +18,9 @@ Wol.AssetList = [
     name: 'marine',
     url: '/images/marine.png'
   },{
+    name: 'marine_alternate',
+    url: '/images/marine_alternate.png'
+  },{
     name: 'hex_act',
     url: '/images/hex_act.png'
   },{

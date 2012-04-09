@@ -2,7 +2,7 @@ html
   block head
     block title HTML5 prototype game yo!
     link(rel="icon", type="image/png", href="favico.png")
-    link(rel="stylesheet", href="stylesheets/site.css")
+    <link rel="stylesheet" href="stylesheets/site.css" type="text/css" media="screen, mobile" title="main" charset="utf-8">
   block body
     #game
       canvas Your browser doesn't support HTML5. Download Chrome, Firefox, or Safari to play this game.
@@ -19,7 +19,7 @@ html
         .confirm.button Confirm
         .cancel.button Cancel
       #top-vignette.hidden
-      #curtain.hidden
+      #curtain
         .text Connecting...
         .top.cover
         .bottom.cover

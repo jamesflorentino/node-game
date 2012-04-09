@@ -126,8 +126,6 @@ class Views.GameView extends GameUi
   assetsReady: =>
     # once the assets are loaded, we can now build our user-interface
     @buildElements().setConfigurations()
-    @ui.curtain.hide()
-    @play()
     if window.debug is true
       @debug()
       return
@@ -196,19 +194,29 @@ class Views.GameView extends GameUi
     this
 
   startGame: =>
+    console.log 'start game'
     @play()
+    @ui.curtain.hide()
     this
 
   addUser: (data) =>
+    console.log 'addUser', data
     @ui.console.log data.message
+    me = @model.user
+    user = @model.getUserById data.userId
+    user.set alternateColor: (=>
+      Boolean @model.users.find (u)=>
+        return false if u is me
+        u.get('raceName') is user.get('raceName') and u.get('playerNumber') < user.get('playerNumber')
+    )()
     this
 
   addUnit: (data) =>
-    console.log 'addUnit', data
     @ui.console.log data.message
     {userId, unitId, unitCode, unitName, tileX, tileY, face} = data
     {unitStats, unitCommands} = data
-    unit = @elements.unitContainer.createUnitByCode unitCode
+    user = @model.getUserById userId
+    unit = @elements.unitContainer.createUnitByCode unitCode, user.get('alternateColor')
     unit.set
       tileX: tileX
       tileY: tileY
@@ -255,13 +263,18 @@ class Views.GameView extends GameUi
   actUnit: (data) =>
     {unitId, commandCode, targets} = data
     @elements.hexContainer.removeActiveTile()
+    tiles = @elements.hexContainer.get 'selection'
+    tiles.selected = []
     unitActive = @elements.unitContainer.getUnitById unitId
     firstTarget = @elements.unitContainer.getUnitById targets[0].unitId
+    @elements.hexContainer.set
+      activeTile: @elements.hexContainer.addTile {tileX: unitActive.get('tileX'), tileY: unitActive.get('tileY')}, 'move'
     unitActive.flip (if unitActive.el.x > firstTarget.el.x then 'left' else' right')
     #events
     unitActive.unbind('attackEnd').bind 'attackEnd', =>
       unitActive.unbind 'attackEnd'
       unitActive.unbind 'attack'
+      @elements.hexContainer.removeTiles tiles.selected if tiles.selected?
       targets.forEach (targetData) =>
         unit = @elements.unitContainer.getUnitById targetData.unitId
         return if !unit
@@ -298,6 +311,7 @@ class Views.GameView extends GameUi
     targets.each (targetData) =>
       unit = @elements.unitContainer.getUnitById targetData.unitId
       return if !unit
+      tiles.selected.push @elements.hexContainer.addTile {tileX: unit.get('tileX'), tileY: unit.get('tileY')}, 'target'
       unit.defend()
 
     unitActive.act

@@ -2,7 +2,9 @@
 
 Views = Wol.Views
 FrameData =
-  marine: {"images": ["marine.png"], "frames": {"width": 112, "height": 97, "count": 108, "regX": 0, "regY": 0}, "animations": {"onRifleShot4": [42, 47], "onRifleShot3": [39, 41], "onRifleShot2": [36, 38], "all": [0, 0], "onRifleShot1": [30, 35], "onRifleShotStart": [23, 29], "onDieStart": [80, 107], "onDefendEnd": [71, 79], "onMoveEnd": [16, 22], "onDefendStart": [59, 65], "onMove": [4, 15], "onRifleShotEnd": [48, 58], "onMoveStart": [1, 3], "onDefend": [66, 70]}}
+  marine: {"images": ["marine.png"], "frames": {"width": 113, "height": 92, "count": 108, "regX": 0, "regY": 0}, "animations": {"onRifleShot4": [42, 47], "onDieStart": [80, 107], "onRifleShot2": [36, 38], "all": [0, 0], "onRifleShot3": [39, 41], "onRifleShotEnd": [48, 58], "onDefend": [66, 70], "onDefendEnd": [71, 79], "onMoveEnd": [16, 22], "onDefendStart": [59, 65], "onRifleShotStart": [23, 29], "onMoveStart": [1, 3], "onMove": [4, 15], "onRifleShot1": [30, 35]}}
+
+  marine_alternate: {"images": ["marine_alternate.png"], "frames": {"width": 113, "height": 92, "count": 108, "regX": 0, "regY": 0}, "animations": {"onMove": [4, 15], "onRifleShot1": [30, 35], "onDefendEnd": [71, 79], "onMoveStart": [1, 3], "onMoveEnd": [16, 22], "onRifleShot4": [42, 47], "onDefend": [66, 70], "all": [0, 0], "onRifleShot2": [36, 38], "onDefendStart": [59, 65], "onRifleShotStart": [23, 29], "onDieStart": [80, 107], "onRifleShot3": [39, 41], "onRifleShotEnd": [48, 58]}}
 
 Wol.Units =
   getAnimation: (frameDataName, images) ->
@@ -26,8 +28,6 @@ Wol.Units =
     unit
 
 Units = Wol.Units
-
-
 
 class Wol.Models.Commands extends Wol.Collections.Collection
   init: ->
@@ -152,9 +152,11 @@ class Wol.Views.Marine extends Wol.Views.AnimatedUnit
   setAnimation: ->
     @height = 125
     @walkSpeed = 600
-    @frameDataName = 'marine'
+    assetName = 'marine'
+    assetName = 'marine_alternate' if @alternateColor is true
+    @frameDataName = assetName
     @images = [
-      Wol.getAsset 'marine'
+      Wol.getAsset assetName
     ]
     @el.regX = 30
     @el.regY = 87

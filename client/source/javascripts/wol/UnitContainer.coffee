@@ -6,9 +6,9 @@ class Wol.Views.UnitContainer extends Wol.Views.View
     @units = []
     return
   
-  createUnitByCode: (unitCode) ->
+  createUnitByCode: (unitCode, alternateColor = false) ->
     switch unitCode
-      when Wol.UnitNames.MARINE then new Wol.Views.Marine()
+      when Wol.UnitNames.MARINE then new Wol.Views.Marine alternateColor: alternateColor
 
   addUnit: (unit) ->
     @el.addChild unit.el

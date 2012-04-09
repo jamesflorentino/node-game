@@ -11,7 +11,7 @@ var Collection, EventDispatcher, Hex, HexGrid, MAX_PLAYERS_PER_ROOM, MAX_USERS_P
 
 PORT = Number(process.env.PORT || 1337);
 
-MAX_PLAYERS_PER_ROOM = 2;
+MAX_PLAYERS_PER_ROOM = 1;
 
 MAX_USERS_PER_ROOM = 2;
 
@@ -211,7 +211,6 @@ User = (function(_super) {
   }
 
   User.prototype.initialize = function() {
-    console.log("====================");
     console.log("User Event: " + (this.get('name')) + " <" + this.id + "> enters a game");
   };
 
@@ -272,7 +271,6 @@ Room = (function(_super) {
   };
 
   Room.prototype.announce = function(eventName, data) {
-    console.log("====================");
     console.log("Room Event: " + eventName);
     console.log(data);
     this.users.forEach(function(user) {
@@ -351,6 +349,12 @@ Room = (function(_super) {
         });
         console.log("unit selected", activeUnit);
       }
+    });
+  };
+
+  Room.prototype.getPlayers = function() {
+    return this.users.map(function(user) {
+      return user.get('playerType') === PlayerType.PLAYER;
     });
   };
 
@@ -565,8 +569,8 @@ ServerProtocol = {
     });
     return room[0];
   },
-  joinRoom: function(user, room) {
-    var playerType, roomId, roomName, socket, totalUsers, userId, userName;
+  joinRoom: function(user, room, raceName) {
+    var playerType, players, roomId, roomName, socket, totalUsers, userId, userName;
     if (room === void 0) return;
     userId = user.id;
     userName = user.get('name');
@@ -574,6 +578,9 @@ ServerProtocol = {
     roomName = room.get('name');
     socket = user.get('socket');
     playerType = PlayerType.PLAYER;
+    user.set({
+      raceName: raceName
+    });
     if (room.totalUsers >= MAX_USERS_PER_ROOM) {
       user.announce('roomError', {
         message: 'Room is already full'
@@ -587,30 +594,51 @@ ServerProtocol = {
       playerType: playerType
     });
     if (user.get('playerType') === PlayerType.PLAYER) {
+      players = room.getPlayers();
+      user.set({
+        playerNumber: players.length
+      });
       ServerProtocol.assignEvents(userId, roomId);
     }
     socket.on('disconnect', function() {
+      console.log("" + userName + " left " + roomName);
       room.removeUser(user);
       if (room.users.length === 0) {
+        room.set({
+          ready: false
+        });
         room.reset();
         return;
       }
-      room.announce('removeUser', {
+      return room.announce('removeUser', {
         roomId: roomId,
         userId: userId,
         userName: userName,
         message: "" + playerType + " " + userName + " has left the game."
       });
-      return console.log("" + userName + " left " + roomName);
     });
     user.announce('joinRoom', {
       roomId: roomId,
       roomName: roomName,
       message: "Hi " + userName + ", you have joined " + roomName + " <" + roomId + ">"
     });
+    room.users.each(function(u) {
+      if (u === user) return;
+      return user.announce('addUser', {
+        userId: u.id,
+        userName: u.get('name'),
+        playerNumber: u.get('playerNumber'),
+        playerType: u.get('playerType'),
+        raceName: u.get('raceName'),
+        message: "" + playerType + " " + userName + " has joined the game."
+      });
+    });
     room.announce('addUser', {
       userId: userId,
       userName: userName,
+      playerNumber: user.get('playerNumber'),
+      playerType: user.get('playerType'),
+      raceName: user.get('raceName'),
       message: "" + playerType + " " + userName + " has joined the game."
     });
     if (totalUsers >= MAX_PLAYERS_PER_ROOM) {
@@ -631,7 +659,7 @@ ServerProtocol = {
     socket = user.get('socket');
     roomId = room.id;
     room.units.each(function(unit) {
-      user.announce('addUnit', {
+      user.announce('updateUnit', {
         userId: unit.get('userId'),
         unitId: unit.id,
         tileX: unit.get('tileX'),
@@ -648,6 +676,9 @@ ServerProtocol = {
   startGame: function(roomId) {
     var players, room, unit, unitB;
     room = ServerProtocol.getRoomById(roomId);
+    room.announce('startGame', {
+      message: 'Game has started'
+    });
     players = room.users.filter(function(u) {
       return u.get('playerType') === PlayerType.PLAYER;
     });
@@ -841,7 +872,7 @@ onConnect = function(socket) {
   var user;
   user = null;
   socket.on('setUserName', function(data) {
-    var userName;
+    var raceName, userName;
     if (user != null) return;
     userName = data.userName;
     user = new User({
@@ -852,10 +883,13 @@ onConnect = function(socket) {
       userId: user.id,
       userName: user.get('name')
     });
-    ServerProtocol.joinRoom(user, testRoom);
+    raceName = 'lemurian';
+    ServerProtocol.joinRoom(user, testRoom, raceName);
   });
-  socket.on('joinRoom', function(roomId) {
-    var room;
+  socket.on('joinRoom', function(roomId, options) {
+    var raceName, room;
+    if (options != null) raceName = options.raceName;
+    raceName || (raceName = 'lemurian');
     room = ServerProtocol.getRoomById(roomId);
     ServerProtocol.joinRoom(user, room);
   });

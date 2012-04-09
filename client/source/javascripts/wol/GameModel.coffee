@@ -3,7 +3,7 @@
 window.DEBUG = false
 
 HOST = 'http://localhost:1337'
-#HOST = 'http://192.168.254.113:1337'
+HOST = 'http://192.168.254.104:1337'
 
 @Wol
 @io
@@ -26,6 +26,9 @@ class Wol.Models.GameModel extends Wol.Models.Model
     console.log 'sending', eventName, data
     @socket.emit eventName, data
     this
+
+  getUserById: (userId) ->
+    @users.find (user) -> user.get('userId') is userId
   
   bindEvents: ->
     @socket.on 'connect', (data) =>
@@ -70,5 +73,6 @@ class Wol.Models.GameModel extends Wol.Models.Model
   setUserName: (userName) ->
     @socket.emit 'setUserName',
       userName: userName
+      raceName: 'lemurian'
     this
   

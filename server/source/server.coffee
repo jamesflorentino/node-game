@@ -9,7 +9,7 @@
 # Global Variables
 # =========================================
 PORT = Number(process.env.PORT or 1337)
-MAX_PLAYERS_PER_ROOM = 2
+MAX_PLAYERS_PER_ROOM = 1
 MAX_USERS_PER_ROOM = 2
 PlayerType =
   SPECTATOR: 'spectator'
@@ -139,7 +139,6 @@ class Collection extends Model
 
 class User extends Model
   initialize: ->
-    console.log "===================="
     console.log "User Event: #{@get 'name'} <#{@id}> enters a game"
     return
 
@@ -188,7 +187,6 @@ class Room extends Model
     user[0]
 
   announce: (eventName, data) ->
-    console.log "===================="
     console.log "Room Event: #{eventName}"
     console.log data
     @users.forEach (user) ->
@@ -249,7 +247,11 @@ class Room extends Model
         @trigger 'unitTurn', unit: activeUnit
         console.log "unit selected", activeUnit
       return
-    
+
+  getPlayers: ->
+    @users.map (user) ->
+      user.get('playerType') is PlayerType.PLAYER
+
   reset: ->
     @users = []
     @units = []
@@ -403,7 +405,7 @@ ServerProtocol =
     room = ServerData.rooms.filter (room) -> room.id is roomId
     room[0]
   
-  joinRoom: (user, room) ->
+  joinRoom: (user, room, raceName) ->
     return if room is undefined
     userId = user.id
     userName = user.get 'name'
@@ -411,6 +413,7 @@ ServerProtocol =
     roomName = room.get 'name'
     socket = user.get 'socket'
     playerType = PlayerType.PLAYER
+    user.set raceName: raceName
   
     # reject the user if the room is full
     # if room.totalUsers > MAX_USERS_PER_ROOM
@@ -421,19 +424,23 @@ ServerProtocol =
     # add the user to the room
     room.addUser user
     totalUsers = room.totalUsers
-  
+
     # set the player type to listen to the user's requests
     playerType = PlayerType.SPECTATOR if totalUsers > MAX_PLAYERS_PER_ROOM
     user.set playerType: playerType
 
     # spectators can only read from the system
     if user.get('playerType') is PlayerType.PLAYER
+      players = room.getPlayers()
+      user.set playerNumber: players.length
       ServerProtocol.assignEvents userId, roomId
 
     # when the user disconnects, remove him from the list
     socket.on 'disconnect', ->
+      console.log "#{userName} left #{roomName}"
       room.removeUser user
       if room.users.length is 0
+        room.set ready: false
         room.reset()
         return
       room.announce 'removeUser',
@@ -441,18 +448,31 @@ ServerProtocol =
         userId: userId
         userName: userName
         message: "#{playerType} #{userName} has left the game."
-      console.log "#{userName} left #{roomName}"
 
     # tell the user that he is subscribed to the room's update
     user.announce 'joinRoom',
       roomId: roomId
       roomName: roomName
       message: "Hi #{userName}, you have joined #{roomName} <#{roomId}>"
-  
+
+    # populate the earlier list of users to the client
+    room.users.each (u) ->
+      return if u is user
+      user.announce 'addUser',
+        userId: u.id
+        userName: u.get 'name'
+        playerNumber: u.get 'playerNumber'
+        playerType: u.get 'playerType'
+        raceName: u.get 'raceName'
+        message: "#{playerType} #{userName} has joined the game."
+
     # announce the new user to the room list
     room.announce 'addUser',
       userId: userId
       userName: userName
+      playerNumber: user.get 'playerNumber'
+      playerType: user.get 'playerType'
+      raceName: user.get 'raceName'
       message: "#{playerType} #{userName} has joined the game."
 
     # start the game if the game has the minimum number of players
@@ -469,7 +489,7 @@ ServerProtocol =
     socket = user.get 'socket'
     roomId = room.id
     room.units.each (unit) ->
-      user.announce 'addUnit',
+      user.announce 'updateUnit',
         userId: unit.get 'userId'
         unitId: unit.id
         tileX: unit.get 'tileX'
@@ -485,6 +505,8 @@ ServerProtocol =
 
   startGame: (roomId) ->
     room = ServerProtocol.getRoomById roomId
+    room.announce 'startGame',
+      message: 'Game has started'
     players = room.users.filter (u) ->
       u.get('playerType') is PlayerType.PLAYER
     # deploy a few units at the beginning of the game.
@@ -679,17 +701,24 @@ onConnect = (socket) ->
   # supply the server with a username
   socket.on 'setUserName', (data) ->
     return if user?
-    userName = data.userName
+    {userName} = data
     user = new User socket: socket, name: userName
     user.announce 'setUserName',
       userId: user.id
       userName: user.get 'name'
-    # DEBUG - deploy user to a default room
-    ServerProtocol.joinRoom user, testRoom
+    # ====================================
+    # D E B U G
+    # ====================================
+    raceName = 'lemurian'
+    ServerProtocol.joinRoom user, testRoom, raceName
     return
 
   # adds the user to an existing room by roomId
-  socket.on 'joinRoom', (roomId) ->
+  socket.on 'joinRoom', (roomId, options) ->
+    # sets the lemurian race as the default race
+    if options?
+      {raceName} = options
+    raceName or= 'lemurian'
     room = ServerProtocol.getRoomById roomId
     ServerProtocol.joinRoom user, room
     return
