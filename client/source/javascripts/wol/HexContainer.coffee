@@ -9,10 +9,11 @@ class Wol.Views.HexContainer extends Wol.Views.View
     @__dict = []
     @tiles = []
     @set
-      move: undefined
-      selected: undefined
-      generated: undefined
-      adjacent: undefined
+      selection:
+        move: undefined
+        selected: undefined
+        generated: undefined
+        adjacent: undefined
     return
 
   # generate a cached version of the tiles.
@@ -22,11 +23,7 @@ class Wol.Views.HexContainer extends Wol.Views.View
     while tileY < rows
       tileX = 0
       while tileX < cols
-        hex = new Bitmap Wol.getAsset 'hex_bg'
-        hex.x = Wol.Views.Hex::width * tileX
-        hex.y = (Wol.Views.Hex::height - Wol.Views.Hex::offsetY) * tileY
-        hex.x += Wol.Views.Hex::offsetX if tileY % 2
-        @el.addChild hex
+        @addBackgroundTile tileX, tileY
         tileX++
       tileY++
     # get the tentative total width and height of the hex grid
@@ -34,8 +31,17 @@ class Wol.Views.HexContainer extends Wol.Views.View
     # every tick to save up CPU usage.
     totalWidth = Wol.Views.Hex::width * cols + Wol.Views.Hex::offsetX
     totalHeight = (Wol.Views.Hex::height - Wol.Views.Hex::offsetY) * rows
+    totalHeight += Wol.Views.Hex::offsetY
     @background.cache 0, 0, totalWidth, totalHeight
     this
+  
+  addBackgroundTile: (tileX, tileY) ->
+    hex = new Bitmap Wol.getAsset 'hex_bg'
+    hex.x = Wol.Views.Hex::width * tileX
+    hex.y = (Wol.Views.Hex::height - Wol.Views.Hex::offsetY) * tileY
+    hex.x += Wol.Views.Hex::offsetX if tileY % 2
+    @background.addChild hex
+
 
   addTilesByPoints: (points, assetName) ->
     tiles = []
@@ -49,8 +55,8 @@ class Wol.Views.HexContainer extends Wol.Views.View
     this
 
   addTile: (point, assetName) ->
-    return if (point.tileX or point.x) < 0 or (point.tileX or point.x) > Wol.Settings.columns
-    return if (point.tileY or point.y) < 0 or (point.tileY or point.y) > Wol.Settings.rows
+    return if (point.tileX or point.x) < 0 or (point.tileX or point.x) >= Wol.Settings.columns
+    return if (point.tileY or point.y) < 0 or (point.tileY or point.y) >= Wol.Settings.rows
     hex = new Wol.Views.Hex
       assetName: assetName
       point: point
@@ -64,5 +70,14 @@ class Wol.Views.HexContainer extends Wol.Views.View
       @el.removeChild tile.el
       @tiles.splice index, 1
     this
-  
 
+  convertToPoints: (tiles) ->
+    tiles.map (tile) ->
+      x: tile.tileX
+      y: tile.tileY
+
+  setActiveTile: (tile) ->
+    @set activeTile: tile
+
+  removeActiveTile: ->
+    @removeTile @get('activeTile')

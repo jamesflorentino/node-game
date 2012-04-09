@@ -12,6 +12,8 @@ Array::random = ->
   this[index]
 
 Array::last = -> @[@length-1]
+Array::find = (cb) -> @filter(cb)[0]
+Array::each = (cb) -> @forEach cb
 
 window.implement = (obj, prop) ->
   if prop instanceof Object
@@ -20,3 +22,4 @@ window.implement = (obj, prop) ->
 
 
 window.after = (ms, cb) -> setTimeout cb, ms
+window.every = (ms, cb) -> setInterval cb, ms

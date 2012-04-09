@@ -1,8 +1,16 @@
 extends layout
 append head
-  title Some coolb log about some guy
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="viewport" content="user-scalable=no, width=960" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  //<link href='http://fonts.googleapis.com/css?family=Maven+Pro:400,500,700,900' rel='stylesheet' type='text/css'>
+  //<link href='http://fonts.googleapis.com/css?family=Play:400,700' rel='stylesheet' type='text/css'>
+  //<link href='http://fonts.googleapis.com/css?family=Orbitron:400,500,700,900' rel='stylesheet' type='text/css'>
+  title HTML5 Game Prototype
   script(src="http://localhost:1337/socket.io/socket.io.js")
+  //script(src="http://192.168.254.113:1337/socket.io/socket.io.js")
   script(src="javascripts/lib/jquery.js")
+  //script(src="javascripts/lib/jquery.mobile.js")
   script(src="javascripts/lib/easel.js")
   script(src="javascripts/lib/Ease.js")
   script(src="javascripts/lib/Tween.js")
@@ -11,8 +19,6 @@ append head
   script(src="javascripts/settings.js")
   script(src="javascripts/wol/AssetLoader.coffee")
   script(src="javascripts/wol/Commands.coffee")
-  script(src="javascripts/wol/GameModel.coffee")
-  script(src="javascripts/wol/GameView.coffee")
   script(src="javascripts/wol/HexContainer.coffee")
   script(src="javascripts/wol/HexLineContainer.coffee")
   script(src="javascripts/wol/HexTile.coffee")
@@ -21,4 +27,7 @@ append head
   script(src="javascripts/wol/Unit.coffee")
   script(src="javascripts/wol/UnitContainer.coffee")
   script(src="javascripts/wol/UnitStats.coffee")
+  script(src="javascripts/wol/DamageCounter.coffee")
+  script(src="javascripts/wol/GameModel.coffee")
+  script(src="javascripts/wol/GameView.coffee")
   script(src="javascripts/app.js")

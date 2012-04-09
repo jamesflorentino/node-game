@@ -11,7 +11,7 @@ var Collection, EventDispatcher, Hex, HexGrid, MAX_PLAYERS_PER_ROOM, MAX_USERS_P
 
 PORT = Number(process.env.PORT || 1337);
 
-MAX_PLAYERS_PER_ROOM = 1;
+MAX_PLAYERS_PER_ROOM = 2;
 
 MAX_USERS_PER_ROOM = 2;
 
@@ -65,6 +65,10 @@ Array.prototype.shuffle = function() {
 
 Array.prototype.find = function(cb) {
   return (this.filter(cb))[0];
+};
+
+Array.prototype.each = function(cb) {
+  return this.forEach(cb);
 };
 
 EventDispatcher = (function() {
@@ -319,6 +323,7 @@ Room = (function(_super) {
       highestCharge = 0;
       units.forEach(function(unit) {
         var charge, chargeSpeed;
+        if (unit.getStat('health') === 0) return;
         chargeSpeed = unit.getStat('chargeSpeed');
         charge = unit.getStat('charge');
         charge += chargeSpeed + Math.random() * 2;
@@ -379,8 +384,70 @@ Unit = (function(_super) {
     this.commands.add(unitCommands);
   }
 
+  Unit.prototype.receiveDamageData = function(damageData) {
+    var stats;
+    stats = {
+      health: this.getStat('health'),
+      shield: this.getStat('shield'),
+      armor: this.getStat('armor')
+    };
+    stats.health -= damageData.health;
+    stats.shield -= damageData.shield;
+    stats.armor -= damageData.armor;
+    stats.health = Math.max(0, stats.health);
+    stats.shield = Math.max(0, stats.shield);
+    stats.armor = Math.max(0, stats.armor);
+    this.stats.set({
+      health: stats.health,
+      shield: stats.shield,
+      armor: stats.armor
+    });
+    return {
+      health: this.getStat('health'),
+      shield: this.getStat('shield'),
+      armor: this.getStat('armor')
+    };
+  };
+
+  Unit.prototype.filterDamageData = function(damageData) {
+    var damage;
+    damage = {
+      health: damageData.health,
+      shield: damageData.shield,
+      armor: damageData.armor
+    };
+    return {
+      health: damage.health,
+      shield: damage.shield,
+      armor: damage.armor
+    };
+  };
+
+  Unit.prototype.getDamageData = function(commandCode) {
+    var armor, command, damage, health, shield;
+    command = this.getCommandByCode(commandCode);
+    damage = command.get('damage');
+    health = damage.health.value;
+    shield = damage.shield.value;
+    armor = damage.armor.value;
+    health += Math.round(Math.random() * damage.health.bonus);
+    shield += Math.round(Math.random() * damage.shield.bonus);
+    armor += Math.round(Math.random() * damage.armor.bonus);
+    return {
+      health: health,
+      shield: shield,
+      armor: armor
+    };
+  };
+
   Unit.prototype.getStat = function(statName) {
     return this.stats.get(statName);
+  };
+
+  Unit.prototype.getCommandByCode = function(commandCode) {
+    return this.commands.find(function(command) {
+      return command.get('code') === commandCode;
+    });
   };
 
   Unit.prototype.move = function(hex) {
@@ -507,7 +574,7 @@ ServerProtocol = {
     roomName = room.get('name');
     socket = user.get('socket');
     playerType = PlayerType.PLAYER;
-    if (room.totalUsers > MAX_USERS_PER_ROOM) {
+    if (room.totalUsers >= MAX_USERS_PER_ROOM) {
       user.announce('roomError', {
         message: 'Room is already full'
       });
@@ -546,21 +613,53 @@ ServerProtocol = {
       userName: userName,
       message: "" + playerType + " " + userName + " has joined the game."
     });
-    if (totalUsers >= MAX_PLAYERS_PER_ROOM) ServerProtocol.startGame(roomId);
+    if (totalUsers >= MAX_PLAYERS_PER_ROOM) {
+      if (room.get('ready') === true) {
+        ServerProtocol.updateClient(user, room);
+        return;
+      }
+      room.set({
+        ready: true
+      });
+      ServerProtocol.startGame(roomId);
+    }
     return room;
   },
+  updateClient: function(user, room) {
+    var roomId, socket, userId;
+    userId = user.id;
+    socket = user.get('socket');
+    roomId = room.id;
+    room.units.each(function(unit) {
+      user.announce('addUnit', {
+        userId: unit.get('userId'),
+        unitId: unit.id,
+        tileX: unit.get('tileX'),
+        tileY: unit.get('tileY'),
+        unitCode: unit.get('code'),
+        unitName: unit.get('name'),
+        message: "" + (user.get('name')) + "'s " + (unit.get('name')) + " has been deployed to " + (room.get('name')) + ".",
+        face: unit.get('face'),
+        unitStats: unit.stats.attributes,
+        unitCommands: unit.commands.getAttributes()
+      });
+    });
+  },
   startGame: function(roomId) {
-    var room, unit, unitB;
+    var players, room, unit, unitB;
     room = ServerProtocol.getRoomById(roomId);
+    players = room.users.filter(function(u) {
+      return u.get('playerType') === PlayerType.PLAYER;
+    });
     unit = ServerProtocol.addUnit({
-      userId: room.users[0].id,
+      userId: players.first().id,
       roomId: roomId,
       unitCode: 'lemurian_marine',
       tileX: 3,
       tileY: 3
     });
     unitB = ServerProtocol.addUnit({
-      userId: room.users.last().id,
+      userId: players.last().id,
       roomId: roomId,
       unitCode: 'lemurian_marine',
       tileX: 4,
@@ -577,7 +676,8 @@ ServerProtocol = {
     unit = room.addUnit(unitCode, userId);
     unit.set({
       tileX: tileX,
-      tileY: tileY
+      tileY: tileY,
+      face: face
     });
     room.announce('addUnit', {
       userId: user.id,
@@ -624,17 +724,55 @@ ServerProtocol = {
     return room.getNextTurn();
   },
   assignEvents: function(userId, roomId) {
-    var room, socket, user,
-      _this = this;
+    var room, socket, user;
     room = ServerProtocol.getRoomById(roomId);
     user = room.getUserById(userId);
     socket = user.get('socket');
+    socket.on('actUnit', function(data) {
+      var commandCode, damageData, points, targets, tiles, unit, unitId;
+      unitId = data.unitId, points = data.points, commandCode = data.commandCode;
+      if (!unitId) return;
+      if (!commandCode) return;
+      if (!points) return;
+      if (points.length === 0) return;
+      unit = room.getUnitById(unitId);
+      if (!unit) return console.log('invalid unitId');
+      if (room.get('activeUnit') !== unit) {
+        return console.log("unit is not hte active unit");
+      }
+      tiles = room.grid.convertPoints(points);
+      if (tiles.length === 0) return console.log('invalid points', points);
+      damageData = unit.getDamageData(commandCode);
+      targets = [];
+      points.forEach(function(point) {
+        var targetUnit, targetUnitStats, totalDamageData;
+        targetUnit = room.units.find(function(u) {
+          return u.get('tileX') === point.tileX && u.get('tileY') === point.tileY;
+        });
+        if (!targetUnit) return;
+        totalDamageData = targetUnit.filterDamageData(damageData);
+        targetUnitStats = targetUnit.receiveDamageData(totalDamageData);
+        return targets.push({
+          unitId: targetUnit.id,
+          damage: totalDamageData,
+          stats: targetUnitStats
+        });
+      });
+      after(1000, function() {
+        return room.announce('actUnit', {
+          unitId: unitId,
+          targets: targets,
+          commandCode: commandCode
+        });
+      });
+      return this;
+    });
     socket.on('moveUnit', function(data) {
-      var conflictedTiles, moveCost, occupiedTiles, points, tiles, unit, unitAction, unitId;
+      var conflictedTiles, face, moveCost, occupiedTiles, points, tiles, unit, unitAction, unitId;
       if (!data.unitId || !data.points) {
         return console.log("invalid unit and points", data);
       }
-      unitId = data.unitId, points = data.points;
+      face = data.face, unitId = data.unitId, points = data.points;
       unit = room.getUnitById(unitId);
       if (!unit) return console.log("invalid unitId", unitId);
       if (room.get('activeUnit') !== unit) {
@@ -647,6 +785,9 @@ ServerProtocol = {
       if (tiles.length === 0) return console.log("invalid points", points);
       unitAction = unit.stats.get('actions');
       moveCost = 0;
+      unit.set({
+        face: face
+      });
       occupiedTiles = room.units.map(function(u) {
         return "" + (u.get('tileX')) + "_" + (u.get('tileY'));
       });
@@ -679,20 +820,15 @@ ServerProtocol = {
       unit = room.getUnitById(unitId);
       if (unit === void 0) return;
       if (userId !== unit.get('userId')) return;
+      if (unit !== room.get('activeUnit')) return;
       return ServerProtocol.nextUnitTurn(roomId);
-      /*
-            user.set readyState: true
-            usersReady = room.users.filter (u) -> u.get 'readyState'
-            return if usersReady.length < MAX_PLAYERS_PER_ROOM
-            usersReady.forEach (u) -> user.set readyState: false
-            activeUnit = room.get 'activeUnit'
-            return if !activeUnit
-      */
     });
     socket.on('skipTurn', function(data) {
       var unit, unitId;
       unitId = data.unitId;
       unit = room.getUnitById(unitId);
+      if (unit === void 0) return;
+      if (userId !== unit.get('userId')) return;
       if (unit !== room.get('activeUnit')) return;
       return ServerProtocol.nextUnitTurn(roomId);
     });
@@ -729,10 +865,8 @@ io.set('brower client minification', true);
 
 io.set('log level', 1);
 
-/*
-io.configure ->
-  io.set 'transports', ['xhr-polling']
-  io.set 'polling duration', 10
-*/
+io.configure(function() {
+  return io.set('transports', ['websocket']);
+});
 
 io.sockets.on('connection', onConnect);

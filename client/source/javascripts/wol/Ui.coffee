@@ -70,6 +70,7 @@ class Ui.CommandList extends Modal
   init: ->
     @el = $ "#command-list"
     @list = @el.find 'ul'
+    @cancelButton = @el.find '.cancel'
     @tpl = (data) ->
       """
       <li>
@@ -77,6 +78,7 @@ class Ui.CommandList extends Modal
         <div class="cost">#{data.cost}</div>
       </li>
       """
+    @cancelButton.click => @trigger 'cancel'
 
   generate: (list) ->
     @list.empty()
@@ -86,3 +88,4 @@ class Ui.CommandList extends Modal
         cost: item.cost
       li.click => @trigger 'command', item
       @list.append li
+    this

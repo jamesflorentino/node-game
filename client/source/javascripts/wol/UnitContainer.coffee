@@ -18,3 +18,7 @@ class Wol.Views.UnitContainer extends Wol.Views.View
   getUnitById: (unitId) ->
     result = @units.filter (unit) -> unit.get('unitId') is unitId
     result[0]
+
+  getUnitByTileId: (tileId) ->
+    @units.find (unit) ->
+      tileId is "#{unit.get('tileX')}_#{unit.get('tileY')}"

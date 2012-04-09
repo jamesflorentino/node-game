@@ -19,10 +19,31 @@ html
         .confirm.button Confirm
         .cancel.button Cancel
       #top-vignette.hidden
-      #curtain
+      #curtain.hidden
         .text Connecting...
         .top.cover
         .bottom.cover
       #command-list.hidden
         .title command list
         ul
+        .cancel.button Cancel
+
+      #unit-info-you.hidden
+        .unit_info
+          .avatar
+          .stats
+            h4.unit_name Unit Name
+            .health.gauge
+              .name HP
+              .background
+                .bar
+              .numeric
+                span.value 300
+                span.total /300
+            .energy.gauge
+              .name EP
+              .background
+                .bar
+              .numeric
+                span.value 100
+                span.total /100

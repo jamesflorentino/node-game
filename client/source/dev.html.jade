@@ -1,7 +1,8 @@
 extends layout
 append head
   script
-    setTimeout(function(){
-      //document.getElementById("command-list").className = "active";
-    }, 10);
-
+    window.onload = function () {
+      var unit_info = document.querySelector('#unit-info-you');
+      var healthbar = unit_info.querySelector(".health > .background > .bar")
+      healthbar.style.webkitTransform = 'scaleX(0.1)';
+    }

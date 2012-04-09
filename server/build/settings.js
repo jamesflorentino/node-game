@@ -39,11 +39,15 @@ Wol.UnitStats = {};
 Wol.UnitStats['lemurian_marine'] = {
   name: 'Lemurian Marine',
   stats: {
-    baseHealth: 100,
+    baseHealth: 300,
     baseEnergy: 10,
-    health: 80,
-    energy: 5,
+    baseShield: 0,
+    baseArmor: 0,
     baseActions: 4,
+    health: 100,
+    energy: 5,
+    shield: 0,
+    armor: 0,
     actions: 4,
     moveRadius: 3,
     charge: 100,
@@ -54,6 +58,32 @@ Wol.UnitStats['lemurian_marine'] = {
 // =====================================
 // Unit Commands
 // =====================================
+/**
+  command properties
+  ------------------
+  name <str>
+    the name of the command that will be displayed to the client.
+  code <str>
+    the id of the command that is used for client and server identification.
+  cost <int>
+    how much it consumes the unit's action points
+  type <str>
+    the tile coverage of the command
+      - 'linear'
+      - 'radial'
+  radius <int>
+    the radius of the tile type coverage
+  damage <num>
+    a round number base damage
+  damageBonus <num>
+    a bonus value that is randomized during calculation and added on top of the
+    base damage value.
+  affinity <str>
+    specifies the attack unit.
+      - 'physical'  -> normal damage
+      - 'technical' -> targets shields and protection
+      - 'force' -> increases or decreases bonus damages
+/**/
 Wol.UnitCommands = {};
 Wol.UnitCommands['lemurian_marine'] = [
   {
@@ -61,15 +91,23 @@ Wol.UnitCommands['lemurian_marine'] = [
     code: 'marine_pulse_rifle_shot',
     cost: 1,
     type: 'linear',
-    radius: 3
-  },{
-    name: 'Frag Grenade',
-    code: 'marine_frag_grenade',
-    cost: 5,
-    type: 'radial',
-    radius: 5
+    radius: 3,
+    affinity: 'physical',
+    damage: {
+      health: {
+        value: 100,
+        bonus: 10
+      },
+      shield: {
+        value: 50,
+        bonus: 0
+      },
+      armor: {
+        value: 50,
+        bonus: 0
+      }
+    }
   }
-]
+];
 
-
-exports.Wol = Wol
+exports.Wol = Wol;

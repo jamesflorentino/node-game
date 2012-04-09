@@ -3,6 +3,7 @@
 window.DEBUG = false
 
 HOST = 'http://localhost:1337'
+#HOST = 'http://192.168.254.113:1337'
 
 @Wol
 @io
@@ -56,10 +57,12 @@ class Wol.Models.GameModel extends Wol.Models.Model
 
     @socket.on 'addUnit', (data) =>
       @trigger 'addUnit', data
-      return
 
     @socket.on 'moveUnit', (data) =>
       @trigger 'moveUnit', data
+
+    @socket.on 'actUnit', (data) =>
+      @trigger 'actUnit', data
 
     @socket.on 'unitTurn', (data) =>
       @trigger 'unitTurn', data

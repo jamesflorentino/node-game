@@ -2,8 +2,7 @@
 
 Views = Wol.Views
 FrameData =
-  marine: {"images": ["marine.png"], "animations": {"onMoveEnd": [17, 23], "onDieStart": [64, 91], "onDefend": [55, 59], "onMoveStart": [1, 3], "onDefendEnd": [60, 63], "all": [0, 0], "onMove": [4, 16], "onDefendStart": [52, 54], "onAttackStart": [24, 51]}, "frames": {"regX": 0, "width": 112, "regY": 0, "height": 97, "count": 92}}
-
+  marine: {"images": ["marine.png"], "frames": {"width": 112, "height": 97, "count": 108, "regX": 0, "regY": 0}, "animations": {"onRifleShot4": [42, 47], "onRifleShot3": [39, 41], "onRifleShot2": [36, 38], "all": [0, 0], "onRifleShot1": [30, 35], "onRifleShotStart": [23, 29], "onDieStart": [80, 107], "onDefendEnd": [71, 79], "onMoveEnd": [16, 22], "onDefendStart": [59, 65], "onMove": [4, 15], "onRifleShotEnd": [48, 58], "onMoveStart": [1, 3], "onDefend": [66, 70]}}
 
 Wol.Units =
   getAnimation: (frameDataName, images) ->
@@ -72,9 +71,15 @@ class Wol.Views.Unit extends Wol.Views.View
     @moveThroughTiles tiles
     this
 
+  act: (data) -> @onAct data
+
   defend: -> @onDefend()
 
+  defendEnd: -> @onDefendEnd()
+
   hit: -> @onHit()
+
+  die: -> @onDie()
 
   performCommand: (commandId) -> @onCommand commandId
 
@@ -114,7 +119,9 @@ class Wol.Views.Unit extends Wol.Views.View
   onMoveEnd: -> @trigger 'moveUnitEnd'
   onSpawn: -> this
   onHit: -> this
+  onDie: -> @trigger 'die'
   onDefend: -> this
+  onDefendEnd: ->
   onCommand: (commandId) -> this
 
 
@@ -133,6 +140,11 @@ class Wol.Views.AnimatedUnit extends Wol.Views.Unit
     @animation.gotoAndStop 0
     this
 
+  showLastKeyFrame: (a, frameName) ->
+    currentFrame = a.currentFrame
+    animationLength = a.spriteSheet.getNumFrames frameName
+    a.gotoAndStop(currentFrame + animationLength - 1)
+    this
 
 
 class Wol.Views.Marine extends Wol.Views.AnimatedUnit
@@ -155,11 +167,27 @@ class Wol.Views.Marine extends Wol.Views.AnimatedUnit
           a.gotoAndPlay 'onMove'
         when 'onMove'
           a.gotoAndPlay 'onMove'
-        when 'onAttackStart'
-          @trigger 'attackEnd'
-        when 'onDefend'
-          this
         when 'onDefendStart'
+          @showLastKeyFrame a, name
+        when 'onDefend'
+          a.paused = true
+        when 'onRifleShotStart'
+          a.gotoAndPlay 'onRifleShot1'
+          @trigger 'attack', multiplier: 0.25
+        when 'onRifleShot1'
+          a.gotoAndPlay 'onRifleShot2'
+          @trigger 'attack', multiplier: 0.25
+        when 'onRifleShot2'
+          a.gotoAndPlay 'onRifleShot3'
+          @trigger 'attack', multiplier: 0.25
+        when 'onRifleShot3'
+          a.gotoAndPlay 'onRifleShot4'
+          @trigger 'attack', multiplier: 0.25
+        when 'onRifleShot4'
+          a.gotoAndPlay 'onRifleShotEnd'
+          @trigger 'attackEnd'
+        when 'onDieStart'
+          @showLastKeyFrame a, name
         else
           a.gotoAndStop 0
       this
@@ -180,20 +208,26 @@ class Wol.Views.Marine extends Wol.Views.AnimatedUnit
     @animation.gotoAndPlay 'onMoveEnd'
     super()
 
-  onHit: ->
-    @animation.gotoAndPlay 'onDefend'
-
-  onDefend: ->
-    @defending = true
-    @animation.gotoAndPlay 'onDefendStart'
-
-  onCommand: (commandId) ->
-    switch commandId
-      when 'marine_pulserifleshot'
-        @play 'onAttackStart'
-        attacks = 4
-        while attacks-- > 0
-          after 200 * attacks, => @trigger 'attack'
+  onAct: (data) ->
+    {commandCode} = data
+    switch commandCode
+      when 'grenade'
+      else
+        @animation.gotoAndPlay 'onRifleShotStart'
     this
 
 
+  onHit: ->
+    @animation.gotoAndPlay 'onDefend'
+
+  onDie: ->
+    @animation.gotoAndPlay 'onDieStart'
+    super()
+
+  onDefend: ->
+    #@defending = true
+    @animation.gotoAndPlay 'onDefendStart'
+
+  onDefendEnd: ->
+    #@defending = false
+    @animation.gotoAndPlay 'onDefendEnd'

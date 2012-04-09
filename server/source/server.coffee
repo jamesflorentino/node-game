@@ -9,7 +9,7 @@
 # Global Variables
 # =========================================
 PORT = Number(process.env.PORT or 1337)
-MAX_PLAYERS_PER_ROOM = 1
+MAX_PLAYERS_PER_ROOM = 2
 MAX_USERS_PER_ROOM = 2
 PlayerType =
   SPECTATOR: 'spectator'
@@ -45,6 +45,7 @@ Array::first = -> @[0]
 Array::at = (i) -> @[i]
 Array::shuffle = -> @sort (a,b) -> Math.round(Math.random() * 10) % 2
 Array::find = (cb) -> (@filter cb)[0]
+Array::each = (cb) -> @forEach cb
 
 # =========================================
 # CLASSES
@@ -227,6 +228,7 @@ class Room extends Model
     intervalId = every tickSpeed, =>
       highestCharge = 0
       units.forEach (unit) =>
+        return if unit.getStat('health') is 0
         chargeSpeed = unit.getStat 'chargeSpeed'
         charge = unit.getStat 'charge'
         charge += chargeSpeed + Math.random() * 2
@@ -271,8 +273,64 @@ class Unit extends Model
     @commands = new Collection()
     @commands.add unitCommands
 
+  # invoke this to perform a deduction/addition to the unit's stats
+  # returns the unit's current stats
+  receiveDamageData: (damageData) ->
+    stats =
+      health: @getStat 'health'
+      shield: @getStat 'shield'
+      armor: @getStat 'armor'
+    stats.health -= damageData.health
+    stats.shield -= damageData.shield
+    stats.armor -= damageData.armor
+
+    stats.health = Math.max 0, stats.health
+    stats.shield = Math.max 0, stats.shield
+    stats.armor = Math.max 0, stats.armor
+
+    @stats.set
+      health: stats.health
+      shield: stats.shield
+      armor: stats.armor
+    # result
+    health: @getStat 'health'
+    shield: @getStat 'shield'
+    armor: @getStat 'armor'
+
+  # apply/filter bonuses/penalties from the damageData
+  filterDamageData: (damageData) ->
+    damage =
+      health: damageData.health
+      shield: damageData.shield
+      armor: damageData.armor
+    # todo: bonus/penalty conditions here
+    # e.g. damage.health = damage.health * 2 if @statusEffects.get('burning')
+    
+    health: damage.health
+    shield: damage.shield
+    armor: damage.armor
+
+  getDamageData: (commandCode) ->
+    command = @getCommandByCode commandCode
+    damage = command.get 'damage'
+    health = damage.health.value
+    shield = damage.shield.value
+    armor = damage.armor.value
+    # add bonuses
+    health += Math.round Math.random() * damage.health.bonus
+    shield += Math.round Math.random() * damage.shield.bonus
+    armor += Math.round Math.random() * damage.armor.bonus
+    # damage data
+    health: health
+    shield: shield
+    armor: armor
+
   getStat: (statName) ->
     @stats.get statName
+
+  getCommandByCode: (commandCode) ->
+    @commands.find (command) ->
+      command.get('code') is commandCode
 
   move: (hex) ->
     @set
@@ -347,7 +405,6 @@ ServerProtocol =
   
   joinRoom: (user, room) ->
     return if room is undefined
-    
     userId = user.id
     userName = user.get 'name'
     roomId = room.id
@@ -356,7 +413,8 @@ ServerProtocol =
     playerType = PlayerType.PLAYER
   
     # reject the user if the room is full
-    if room.totalUsers > MAX_USERS_PER_ROOM
+    # if room.totalUsers > MAX_USERS_PER_ROOM
+    if room.totalUsers >= MAX_USERS_PER_ROOM
       user.announce 'roomError', message: 'Room is already full'
       return
   
@@ -399,22 +457,46 @@ ServerProtocol =
 
     # start the game if the game has the minimum number of players
     if totalUsers >= MAX_PLAYERS_PER_ROOM
+      if room.get('ready') is true
+        ServerProtocol.updateClient user, room
+        return
+      room.set ready: true
       ServerProtocol.startGame roomId
     room
 
+  updateClient: (user, room) ->
+    userId = user.id
+    socket = user.get 'socket'
+    roomId = room.id
+    room.units.each (unit) ->
+      user.announce 'addUnit',
+        userId: unit.get 'userId'
+        unitId: unit.id
+        tileX: unit.get 'tileX'
+        tileY: unit.get 'tileY'
+        unitCode: unit.get 'code'
+        unitName: unit.get 'name'
+        message: "#{user.get 'name'}'s #{unit.get 'name'} has been deployed to #{room.get 'name'}."
+        face: unit.get 'face'
+        unitStats: unit.stats.attributes
+        unitCommands: unit.commands.getAttributes()
+      return
+    return
+
   startGame: (roomId) ->
     room = ServerProtocol.getRoomById roomId
-
+    players = room.users.filter (u) ->
+      u.get('playerType') is PlayerType.PLAYER
     # deploy a few units at the beginning of the game.
     unit = ServerProtocol.addUnit
-      userId: room.users[0].id
+      userId: players.first().id
       roomId: roomId
       unitCode: 'lemurian_marine'
       tileX: 3
       tileY: 3
 
     unitB = ServerProtocol.addUnit
-      userId: room.users.last().id
+      userId: players.last().id
       roomId: roomId
       unitCode: 'lemurian_marine'
       tileX: 4
@@ -430,7 +512,7 @@ ServerProtocol =
     room = ServerProtocol.getRoomById roomId
     user = room.getUserById userId
     unit = room.addUnit unitCode, userId
-    unit.set tileX: tileX, tileY: tileY
+    unit.set tileX: tileX, tileY: tileY, face: face
     room.announce 'addUnit',
       userId: user.id
       unitId: unit.id
@@ -478,15 +560,51 @@ ServerProtocol =
     # ----------------------------------
     # EVENTS
     # ----------------------------------
+
+    socket.on 'actUnit', (data) ->
+      {unitId, points, commandCode} = data
+      return if !unitId
+      return if !commandCode
+      return if !points
+      return if points.length is 0
+      # disregard if the unitId doesn't exist
+      unit = room.getUnitById unitId
+      return console.log('invalid unitId') if !unit
+      # disregard if unit is not the active one
+      return console.log("unit is not hte active unit") if room.get('activeUnit') isnt unit
+      # disregard if the points given does not exist
+      tiles = room.grid.convertPoints points
+      return console.log('invalid points', points) if tiles.length is 0
+      # targets will be the affeced units from the operation
+      damageData = unit.getDamageData commandCode
+      targets = []
+      # populate the target list
+      points.forEach (point) ->
+        targetUnit = room.units.find (u) ->
+          u.get('tileX') is point.tileX and u.get('tileY') is point.tileY
+        return if !targetUnit
+        totalDamageData = targetUnit.filterDamageData damageData
+        targetUnitStats = targetUnit.receiveDamageData totalDamageData
+        targets.push
+          unitId: targetUnit.id
+          damage: totalDamageData
+          stats: targetUnitStats
+
+      after 1000, ->
+        room.announce 'actUnit',
+          unitId: unitId
+          targets: targets
+          commandCode: commandCode
+      this
+
     # moveUnit
     # when the client send a command to the server
     # stating that a unit has moved to a new tile destination
     # unitId: <String> the id of the unit
     # points: <Array> the tiles in which the unit is moving respectively
     socket.on 'moveUnit', (data) ->
-
       return console.log("invalid unit and points", data) if !data.unitId or !data.points
-      {unitId, points} = data
+      {face, unitId, points} = data
       # cancel if the unit doesn't exist
       unit = room.getUnitById unitId
       return console.log("invalid unitId", unitId) if !unit
@@ -500,6 +618,7 @@ ServerProtocol =
       # verify the tile cost
       unitAction = unit.stats.get 'actions'
       moveCost = 0
+      unit.set face: face
       occupiedTiles = room.units.map (u) -> "#{u.get('tileX')}_#{u.get('tileY')}"
       conflictedTiles = []
       tiles.forEach (tile) ->
@@ -529,24 +648,20 @@ ServerProtocol =
       unit = room.getUnitById unitId
       return if unit is undefined
       return if userId isnt unit.get('userId')
+      return if unit isnt room.get('activeUnit')
       # temporary for now
       ServerProtocol.nextUnitTurn roomId
-      ###
-      user.set readyState: true
-      usersReady = room.users.filter (u) -> u.get 'readyState'
-      return if usersReady.length < MAX_PLAYERS_PER_ROOM
-      usersReady.forEach (u) -> user.set readyState: false
-      activeUnit = room.get 'activeUnit'
-      return if !activeUnit
-      ###
 
-    socket.on 'skipTurn', (data) =>
+    socket.on 'skipTurn', (data) ->
       {unitId} = data
       unit = room.getUnitById unitId
-      # cancel if not the the active unit
+      return if unit is undefined
+      return if userId isnt unit.get('userId')
       return if unit isnt room.get('activeUnit')
-      # cancel
+      # temporary for now
       ServerProtocol.nextUnitTurn roomId
+
+
     return
 
 
@@ -587,10 +702,9 @@ onConnect = (socket) ->
 # =========================================
 io.set 'brower client minification', true
 io.set 'log level', 1
-###
 io.configure ->
-  io.set 'transports', ['xhr-polling']
-  io.set 'polling duration', 10
-###
+  io.set 'transports', ['websocket']
+  #io.set 'transports', ['xhr-polling']
+  #io.set 'polling duration', 10
 io.sockets.on 'connection', onConnect
 
