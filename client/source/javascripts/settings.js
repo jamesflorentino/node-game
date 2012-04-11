@@ -29,6 +29,9 @@ Wol.AssetList = [
   },{
     name: 'damage',
     url: '/images/damage_numbers.png'
+  },{
+    name: 'gauges',
+    url: '/images/sprite_gauges.png'
   }
 ];
 

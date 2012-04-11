@@ -24,8 +24,13 @@ class Wol.Models.GameModel extends Wol.Models.Model
 
   send: (eventName, data) ->
     console.log 'sending', eventName, data
+    return if !@socket
     @socket.emit eventName, data
     this
+
+  addUser: (data) ->
+    @users.add new Wol.Models.Model(data)
+    @trigger 'addUser', data
 
   getUserById: (userId) ->
     @users.find (user) -> user.get('userId') is userId
@@ -51,12 +56,14 @@ class Wol.Models.GameModel extends Wol.Models.Model
       return
 
     @socket.on 'addUser', (data) =>
-      @users.add new Wol.Models.Model(data)
-      @trigger 'addUser', data
+      @addUser data
       return
 
     @socket.on 'startGame', (data) =>
       @trigger 'startGame', data
+    
+    @socket.on 'removeUnit', (data) =>
+      @trigger 'removeUnit', data
 
     @socket.on 'addUnit', (data) =>
       @trigger 'addUnit', data

@@ -44,7 +44,7 @@ Wol.UnitStats['lemurian_marine'] = {
     baseShield: 0,
     baseArmor: 0,
     baseActions: 4,
-    health: 100,
+    health: 300,
     energy: 5,
     shield: 0,
     armor: 0,
@@ -95,7 +95,7 @@ Wol.UnitCommands['lemurian_marine'] = [
     affinity: 'physical',
     damage: {
       health: {
-        value: 100,
+        value: 300,
         bonus: 10
       },
       shield: {

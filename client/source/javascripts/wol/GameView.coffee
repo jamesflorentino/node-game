@@ -1,13 +1,3 @@
-#= require wol/AssetLoader
-#= require wol/Ui
-#= require wol/HexTile
-#= require wol/Unit
-#= require wol/HexContainer
-#= require wol/UnitContainer
-#= require wol/HexLineContainer
-#= require wol/Commands
-
-
 # ========================================
 # NOTES
 # ========================================
@@ -34,10 +24,10 @@ class Renderer extends Views.View
     @canvas.width = Settings.gameWidth
     @canvas.height = Settings.gameHeight
     @stage = new Stage @canvas
-    @pause()
     Touch.enable()
     Ticker.addListener tick: => @render()
     Ticker.setFPS 30
+    @pause()
     #@useRAF()
   
   useRAF: ->
@@ -88,14 +78,18 @@ class GameUi extends Renderer
       hexContainer: new Views.HexContainer()
       hexLine: new Views.HexLineContainer()
       unitContainer: new Views.UnitContainer()
+      gaugeContainer: new Views.GaugeContainer()
       damageCounter: new Views.DamageCounter()
       viewport: new Container()
+
     @elements.viewport.addChild @elements.terrain
     @elements.viewport.addChild @elements.hexContainer.background
     @elements.viewport.addChild @elements.hexContainer.el
     @elements.viewport.addChild @elements.hexLine.el
     @elements.viewport.addChild @elements.unitContainer.el
+    @elements.viewport.addChild @elements.gaugeContainer.el
     @elements.viewport.addChild @elements.damageCounter.el
+
     # add the elements to the stage
     # for `View` instances, they should have an `@el` property
     # which is a `Container` instance from EaselJS.
@@ -111,9 +105,12 @@ class GameUi extends Renderer
     this
 
   isOccupiedTileById: (tileId) ->
-    occupiedTiles = @elements.unitContainer.units.map (u) ->
-      "#{u.get 'tileX'}_#{u.get 'tileY'}"
-    occupiedTiles.indexOf(tileId) > -1
+    unit = @elements.unitContainer.getUnitByTileId tileId
+    if unit?
+      if unit.dead is true
+        return false
+      return true
+    false
 
 class Views.GameView extends GameUi
 
@@ -126,33 +123,59 @@ class Views.GameView extends GameUi
   assetsReady: =>
     # once the assets are loaded, we can now build our user-interface
     @buildElements().setConfigurations()
-    if window.debug is true
-      @debug()
-      return
     @model.bind 'startGame', @startGame
     @model.bind 'addUser', @addUser
     @model.bind 'addUnit', @addUnit
+    @model.bind 'removeUnit', @removeUnit
     @model.bind 'moveUnit', @moveUnit
     @model.bind 'actUnit', @actUnit
     @model.bind 'unitTurn', @unitTurn
+    return @debug() if window.debug is true
     @model.connect()
     this
 
   debug: ->
+    
+    tempUser =
+      userId: '1234567890'
+      userName: 'James'
+      playerNumber: 0
+      playerType: 'player'
+      raceName: 'lemurian'
+      message: 'yo!'
+
+    tempUserB =
+      userId: '9229292'
+      userName: 'lols'
+      playerNumber: 1
+      playerType: 'player'
+      raceName: 'lemurian'
+      message: 'asdfasdf'
+
+    @model.user.set tempUser
+    @model.addUser tempUser
+    @model.addUser tempUserB
+
+    user = @model.users.at 0
+    userB = @model.users.at 1
 
     unit = @addUnit
       message: 'debug add unit'
       unitId: String().randomId()
-      userId: String().randomId()
+      userId: user.get('userId')
       tileX: 3
       tileY: 3
       unitCode: 'lemurian_marine'
       unitName: 'Assault Marine'
-      unitStat:
+      unitStats:
         baseHealth: 100
+        baseArmor: 100
+        baseShield: 0
         baseEnergy: 10
         baseActions: 4
         health: 80
+        armor: 10
+        shield: 5
         energy: 9
         actions: 4
         moveRadius: 3
@@ -163,17 +186,21 @@ class Views.GameView extends GameUi
     unit_b = @addUnit
       message: 'debug add unit'
       unitId: String().randomId()
-      userId: String().randomId()
+      userId: userB.get('userId')
       tileX: 4
       tileY: 3
       unitCode: 'lemurian_marine'
       unitName: 'Assault Marine'
       face: 'left'
-      unitStat:
+      unitStats:
         baseHealth: 100
         baseEnergy: 10
+        baseShield: 5
+        baseArmor: 0
         baseActions: 4
         health: 80
+        armor: 3
+        shield: 3
         energy: 9
         actions: 4
         moveRadius: 3
@@ -181,26 +208,43 @@ class Views.GameView extends GameUi
         chargeSpeed: 10
       unitCommands: []
 
-    after 1200, =>
-      @actUnit
-        commandCode: 'marine_pulse_rifle_shot'
-        unitId: unit.get 'unitId'
-        targets: [
-          {
-            unitId: unit_b.get 'unitId'
-            damage: Math.random() * 40 + 40
-          }
-        ]
+    @ui.curtain.hide()
+    @startGame()
+    after 1000, =>
+      mode = 'move'
+      mode = 'act'
+      switch mode
+        when 'move'
+          @moveUnit
+            unitId: unit.get 'unitId'
+            points: [{tileX: 4, tileY: 3}, {tileX: 4, tileY: 4}, {tileX: 4, tileY: 5}]
+            message: 'moving'
+        when 'act'
+          @actUnit
+            unitId: unit.get 'unitId'
+            message: 'attack'
+            commandCode: 'marine_pulse_rifle_shot'
+            targets: [
+              unitId: unit_b.get 'unitId'
+              damage:
+                armor: 0
+                shield: 0
+                health: 25
+              stats:
+                armor: 0
+                shield: 0
+                health: 25
+            ]
+      return
+    after 5000, => @pause()
     this
 
   startGame: =>
-    console.log 'start game'
     @play()
     @ui.curtain.hide()
     this
 
   addUser: (data) =>
-    console.log 'addUser', data
     @ui.console.log data.message
     me = @model.user
     user = @model.getUserById data.userId
@@ -211,103 +255,163 @@ class Views.GameView extends GameUi
     )()
     this
 
+  # ///////////////////////////////////////////////
+  # GameUi.addUnit
   addUnit: (data) =>
     @ui.console.log data.message
     {userId, unitId, unitCode, unitName, tileX, tileY, face} = data
     {unitStats, unitCommands} = data
+    # disregard if the user doesn't exist
     user = @model.getUserById userId
-    unit = @elements.unitContainer.createUnitByCode unitCode, user.get('alternateColor')
-    unit.set
-      tileX: tileX
-      tileY: tileY
-      unitCode: unitCode
-      unitId: unitId
-      unitName: unitName
-      userId: userId
-    unit.set unitStats
+    return if !user
+    # check if the user needs an alternate color
+    # set all the server data into the unit
+    # set the commands, todo: should just use a normal object for them vs classes.
+    # set the direction of the unit
+    # spawn the unit. this will trigger some events
+    alternateColor = user.get 'alternateColor'
+    unit = @elements.unitContainer.createUnitByCode unitCode, alternateColor
+    unit.set data
     unit.commands.add unitCommands
     unit.flip('left') if face is 'left'
-    @elements.unitContainer.addUnit unit
+    unit.spawn()
+    # generate the health, armor, shield gauges
+    gauge = @elements.gaugeContainer.add unitId
+    gauge.updateElements unitStats
+    gauge.update unitStats
+    gauge.el.regX = unit.el.regX
+    gauge.el.regY = unit.el.regY + 20
+    # get the coordinates of the tile that the unit is positioned in.
     tile = Views.Hex::getCoordinates tileX, tileY
-    unit.el.x = tile.x
-    unit.el.y = tile.y
-    unit
+    unit.position tile.x, tile.y
+    gauge.position tile.x, tile.y
+    # finally add the thing intot he display list
+    @elements.unitContainer.addUnit unit
 
+  # ///////////////////////////////////////////////
+  removeUnit: (data) =>
+    {unitId} = data
+    unit = @elements.unitContainer.getUnitById unitId
+    return if !unit
+    unit.remove()
+
+  # ///////////////////////////////////////////////
   # GameUi.moveUnit
+  # data arguments
+  # unitId: <String>
+  # points: <Array>
+  # message: <String>
   moveUnit: (data) =>
     {unitId, points, message} = data
     @ui.console.log message
+    # remove any active tile remaining
     @elements.hexContainer.removeActiveTile()
+    # define the unit, units, and points
     unit = @elements.unitContainer.getUnitById unitId
     units = @elements.unitContainer.units
     points = [{x: unit.get('tileX'), y: unit.get('tileY')}].concat points
     tiles = @elements.hexContainer.addTilesByPoints points, 'move'
-    # unbind events first before you bind!
-    unit.unbind()
-    unit.bind 'moveUnitEnd', =>
-      unit.unbind()
+    gauge = @elements.gaugeContainer.getById unitId
+    # ----------------
+    # when the unit has stopped moving
+    unit.unbind('moveUnitEnd').bind 'moveUnitEnd', =>
+      unit.unbind 'moveUnitEnd'
+      unit.unbind 'move'
+      @elements.gaugeContainer.show()
       @elements.hexLine.clear()
       @elements.hexContainer.removeTiles tiles
       @model.send 'moveUnitEnd',
         unitId: unitId
         type: 'move'
-    # sort the unit list when a unit has moved to a new tile
-    unit.bind 'move', =>
-      units.forEach (u) ->
+      return
+    # trigger an event whenever the unit is about to move.
+    # TO-DO sort the unit list when a unit has moved to a new tile
+    unit.unbind('move').bind 'move', (moveData) =>
+      gauge.move moveData
+      return
+    # displace the unit
+    # hide the gauges
     unit.move tiles
+    @elements.gaugeContainer.hide()
     # create a hexagonal line
     @elements.hexLine.start tiles[0].x, tiles[0].y
     tiles.forEach (tile) => @elements.hexLine.to tile.x, tile.y
     this
 
+  # ///////////////////////////////////////////////
   actUnit: (data) =>
     {unitId, commandCode, targets} = data
     @elements.hexContainer.removeActiveTile()
     tiles = @elements.hexContainer.get 'selection'
     tiles.selected = []
+    # get the first target of the targets list to be able
+    # to determine which side the unit will face to.
     unitActive = @elements.unitContainer.getUnitById unitId
     firstTarget = @elements.unitContainer.getUnitById targets[0].unitId
-    @elements.hexContainer.set
-      activeTile: @elements.hexContainer.addTile {tileX: unitActive.get('tileX'), tileY: unitActive.get('tileY')}, 'move'
     unitActive.flip (if unitActive.el.x > firstTarget.el.x then 'left' else' right')
-    #events
+    # assign the activeTile as a property so we can easily remove this
+    # asynchronusly from other events
+    @elements.hexContainer.set
+      activeTile: (=>
+        @elements.hexContainer.addTile
+          tileX: unitActive.get 'tileX'
+          tileY: unitActive.get 'tileY'
+        , 'move'
+      )()
+    # when the active unit finishes attacking
     unitActive.unbind('attackEnd').bind 'attackEnd', =>
-      unitActive.unbind 'attackEnd'
-      unitActive.unbind 'attack'
+      unitActive.unbind()
       @elements.hexContainer.removeTiles tiles.selected if tiles.selected?
-      targets.forEach (targetData) =>
+      targets.each (targetData) =>
+        {stats} = targetData
         unit = @elements.unitContainer.getUnitById targetData.unitId
+        gauge = @elements.gaugeContainer.getById targetData.unitId
         return if !unit
         # tell the unit to die if there's no more health hehe
-        if targetData.stats.health is 0
+        if stats.health is 0
           unit.die()
+          gauge.hide()
         else
           unit.defendEnd()
-        unit.set
-          health: targetData.stats.health
-          armor: targetData.stats.armor
-          shield: targetData.stats.shield
+        # set the final properties
+        unit.setStat
+          health: stats.health
+          armor: stats.armor
+          shield: stats.shield
       @model.send 'moveUnitEnd',
         unitId: unitId
-
+    # whenever a unit dispatches an attack event
+    # which is assigned on animation events.
     unitActive.unbind('attack').bind 'attack', (options) =>
-      targets.forEach (targetData) =>
-
+      # the unit can optionally dispatcha a multiplier for dividing damage between
+      # animations.
+      # iterate all the units and perform operation
+      targets.each (targetData) =>
         unit = @elements.unitContainer.getUnitById targetData.unitId
-        return if !unit
-        unit.hit()
-        damageData = targetData.damage
-        damage =
-          health: damageData.health
-          shield: damageData.shield
-          armor: damageData.armor
+        gauge = @elements.gaugeContainer.getById unit.get 'unitId'
+        return if unit is undefined
+        {damage, stats} = targetData
+        damageData =
+          health: damage.health
+          shield: damage.shield
+          armor: damage.armor
+        # do some fancy pancy here if the unit dispatches some
+        # sort of animation event.
         if options?
-          damage.health *= options.multiplier if options.multiplier?
+          if options.multiplier?
+            damageData.health *= options.multiplier
+        gauge.update
+          baseHealth: stats.baseHealth or unit.getStat('baseHealth')
+          health: stats.health
+        # show the damage animation
         @elements.damageCounter.show
           x: unit.el.x
           y: unit.el.y - unit.height
-          damage: damage.health
-
+          damage: damageData.health
+        # dispatch a hit unit for animation
+        unit.hit()
+    # add an attack tile indicator below all affected units
+    # tell the units to perform a defend animation
     targets.each (targetData) =>
       unit = @elements.unitContainer.getUnitById targetData.unitId
       return if !unit
@@ -317,6 +421,7 @@ class Views.GameView extends GameUi
     unitActive.act
       code: commandCode
 
+  # ///////////////////////////////////////////////
   # GameUi.unitTurn
   unitTurn: (data) =>
     {unitId, message} = data
@@ -478,12 +583,13 @@ class Views.GameView extends GameUi
           occupyingUnit = @elements.unitContainer.getUnitByTileId tile.id
           # skip tiles that do not have units on top of them.
           return if occupyingUnit is undefined
+          # skip if the unit is dead :P
+          return if occupyingUnit.dead is true
           # assign click/touch events that would display the container
           tile.click =>
             # cancel if already in the list
             return if tiles.selected.indexOf(tile) > -1
             tiles.selected.push tile
-
             @elements.hexContainer.removeTiles tiles.move if tiles.move?
             # generated tiles are the tiles whose tileId gets sent to the server
             # we only send the currently selected tile.

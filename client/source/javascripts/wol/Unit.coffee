@@ -1,11 +1,18 @@
 @Wol
 
+# ============================================
+# FrameData
+# ============================================
 Views = Wol.Views
 FrameData =
-  marine: {"images": ["marine.png"], "frames": {"width": 113, "height": 92, "count": 108, "regX": 0, "regY": 0}, "animations": {"onRifleShot4": [42, 47], "onDieStart": [80, 107], "onRifleShot2": [36, 38], "all": [0, 0], "onRifleShot3": [39, 41], "onRifleShotEnd": [48, 58], "onDefend": [66, 70], "onDefendEnd": [71, 79], "onMoveEnd": [16, 22], "onDefendStart": [59, 65], "onRifleShotStart": [23, 29], "onMoveStart": [1, 3], "onMove": [4, 15], "onRifleShot1": [30, 35]}}
+  marine: {"images": ["marine.png"], "frames": {"width": 113, "height": 97, "count": 104, "regX": 0, "regY": 0}, "animations": {"onRifleShot2": [36, 38], "onRifleShot3": [39, 41], "onDefendEnd": [71, 79], "all": [0, 0], "onDieStart": [80, 103], "onMoveStart": [1, 3], "onDefend": [66, 70], "onMove": [4, 15], "onDefendStart": [59, 65], "onRifleShot1": [30, 35], "onRifleShotStart": [23, 29], "onMoveEnd": [16, 22], "onRifleShot4": [42, 47], "onRifleShotEnd": [48, 58]}}
 
-  marine_alternate: {"images": ["marine_alternate.png"], "frames": {"width": 113, "height": 92, "count": 108, "regX": 0, "regY": 0}, "animations": {"onMove": [4, 15], "onRifleShot1": [30, 35], "onDefendEnd": [71, 79], "onMoveStart": [1, 3], "onMoveEnd": [16, 22], "onRifleShot4": [42, 47], "onDefend": [66, 70], "all": [0, 0], "onRifleShot2": [36, 38], "onDefendStart": [59, 65], "onRifleShotStart": [23, 29], "onDieStart": [80, 107], "onRifleShot3": [39, 41], "onRifleShotEnd": [48, 58]}}
+  marine_alternate: {"frames": {"regY": 0, "width": 113, "height": 97, "count": 108, "regX": 0}, "animations": {"onDefendEnd": [71, 79], "onRifleShot2": [36, 38], "onRifleShot1": [30, 35], "onMove": [4, 15], "all": [0, 0], "onMoveStart": [1, 3], "onRifleShot4": [42, 47], "onDefendStart": [59, 65], "onMoveEnd": [16, 22], "onDieStart": [80, 107], "onRifleShot3": [39, 41], "onRifleShotEnd": [48, 58], "onRifleShotStart": [23, 29], "onDefend": [66, 70]}, "images": ["marine_alternate.png"]}
 
+
+
+# ============================================
+# ============================================
 Wol.Units =
   getAnimation: (frameDataName, images) ->
     frameData   = @getFrameData frameDataName, images
@@ -22,15 +29,12 @@ Wol.Units =
     unit = null
     switch type
       when 'marine'
-        unit = new Wol.Views.Marine
+        unit = new Wol.Views.Marine()
       else
-        unit = new Wol.Views.Unit
+        unit = new Wol.Views.Unit()
     unit
 
 Units = Wol.Units
-
-class Wol.Models.Commands extends Wol.Collections.Collection
-  init: ->
 
 # Unit Class
 class Wol.Views.Unit extends Wol.Views.View
@@ -41,8 +45,9 @@ class Wol.Views.Unit extends Wol.Views.View
   height: 150
   init: ->
     @el = new Container()
+    @dead = false
     @walkSpeed = 100
-    @commands = new Wol.Models.Commands()
+    @commands = new Wol.Collections.Collection()
     this
 
   resetCharge: ->
@@ -53,9 +58,15 @@ class Wol.Views.Unit extends Wol.Views.View
     tileY = @get 'tileY'
     @setTilePosition tileX, tileY
     @resetCharge()
+    @trigger 'spawn'
     this
 
-  getStat: (statName) -> @get statName
+  getStat: (statName) -> @get('unitStats')[statName]
+
+  setStat: (data) ->
+    stats = @get 'unitStats'
+    for prop of data
+      stats[prop] = data[prop]
 
   stand: -> @onStand()
 
@@ -73,28 +84,43 @@ class Wol.Views.Unit extends Wol.Views.View
 
   act: (data) -> @onAct data
 
-  defend: -> @onDefend()
+  defend: ->
+    return if @dead is true
+    @onDefend()
 
-  defendEnd: -> @onDefendEnd()
+  defendEnd: ->
+    return if @dead is true
+    @onDefendEnd()
 
-  hit: -> @onHit()
+  hit: ->
+    return if @dead is true
+    @onHit()
 
-  die: -> @onDie()
+  die: ->
+    @dead = true
+    @onDie()
+
+  remove: ->
+    @onRemove()
+
+  position: (x, y) ->
+    @el.x = x
+    @el.y = y
 
   performCommand: (commandId) -> @onCommand commandId
 
   moveThroughTiles: (tiles) =>
     @onMoveStart()
     prevx = @el.x
-    tween = Tween.get(@el)
+    tween = Tween.get @el
     tiles.forEach (tile, i) =>
       return if i is 0
       @setTilePosition tile.tileX, tile.tileY
       tween = tween.call =>
         @el.scaleX = (if tile.x > prevx then 1 else -1)
         prevx = tile.x
-        @onMove()
-        this
+        @onMove x: tile.x, y: tile.y, speed: @walkSpeed
+        return
       tween = tween.to({x:tile.x, y:tile.y}, @walkSpeed)
     tween = tween.call => @onMoveEnd()
     this
@@ -114,15 +140,17 @@ class Wol.Views.Unit extends Wol.Views.View
     this
 
   onStand: -> this
-  onMove: -> @trigger 'move'
+  onMove: (data) -> @trigger 'move', data
   onMoveStart: -> this
   onMoveEnd: -> @trigger 'moveUnitEnd'
   onSpawn: -> this
   onHit: -> this
   onDie: -> @trigger 'die'
   onDefend: -> this
-  onDefendEnd: ->
+  onDefendEnd: -> this
   onCommand: (commandId) -> this
+  onRemove: ->
+    @el.visible = false
 
 
 class Wol.Views.AnimatedUnit extends Wol.Views.Unit
@@ -140,10 +168,11 @@ class Wol.Views.AnimatedUnit extends Wol.Views.Unit
     @animation.gotoAndStop 0
     this
 
-  showLastKeyFrame: (a, frameName) ->
-    currentFrame = a.currentFrame
-    animationLength = a.spriteSheet.getNumFrames frameName
-    a.gotoAndStop(currentFrame + animationLength - 1)
+  showLastKeyFrame: (animation, frameName) ->
+    currentFrame = animation.currentFrame
+    animationLength = animation.spriteSheet.getNumFrames frameName
+    lastFrame = currentFrame + animationLength - 1
+    animation.gotoAndStop(currentFrame + animationLength - 1)
     this
 
 
@@ -158,8 +187,8 @@ class Wol.Views.Marine extends Wol.Views.AnimatedUnit
     @images = [
       Wol.getAsset assetName
     ]
-    @el.regX = 30
-    @el.regY = 87
+    @el.regX = 32
+    @el.regY = 77
     super()
 
   setAnimationEvents: ->
@@ -218,7 +247,6 @@ class Wol.Views.Marine extends Wol.Views.AnimatedUnit
         @animation.gotoAndPlay 'onRifleShotStart'
     this
 
-
   onHit: ->
     @animation.gotoAndPlay 'onDefend'
 
@@ -227,9 +255,16 @@ class Wol.Views.Marine extends Wol.Views.AnimatedUnit
     super()
 
   onDefend: ->
-    #@defending = true
     @animation.gotoAndPlay 'onDefendStart'
 
   onDefendEnd: ->
-    #@defending = false
     @animation.gotoAndPlay 'onDefendEnd'
+
+  onRemove: ->
+    Tween.get(@el)
+      .to(
+        {alpha: 0}
+      , 400
+      ).call(=>
+        @el.visible = false
+      )

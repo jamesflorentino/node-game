@@ -13,7 +13,7 @@ class Wol.Views.UnitContainer extends Wol.Views.View
   addUnit: (unit) ->
     @el.addChild unit.el
     @units.push unit
-    this
+    unit
   
   getUnitById: (unitId) ->
     result = @units.filter (unit) -> unit.get('unitId') is unitId

@@ -270,6 +270,12 @@ Room = (function(_super) {
     return user[0];
   };
 
+  Room.prototype.getUnitByTileId = function(tileId) {
+    return this.units.find(function(unit) {
+      return tileId === ("" + (unit.get('tileX')) + "_" + (unit.get('tileY')));
+    });
+  };
+
   Room.prototype.announce = function(eventName, data) {
     console.log("Room Event: " + eventName);
     console.log(data);
@@ -386,6 +392,7 @@ Unit = (function(_super) {
     unitCommands = Wol.UnitCommands[unitCode];
     this.commands = new Collection();
     this.commands.add(unitCommands);
+    this.dead = false;
   }
 
   Unit.prototype.receiveDamageData = function(damageData) {
@@ -442,6 +449,10 @@ Unit = (function(_super) {
       shield: shield,
       armor: armor
     };
+  };
+
+  Unit.prototype.setStat = function(data) {
+    return this.stats.set(data);
   };
 
   Unit.prototype.getStat = function(statName) {
@@ -734,8 +745,7 @@ ServerProtocol = {
     point = points.last();
     unit.set({
       tileX: point.tileX,
-      tileY: point.tileY,
-      moved: true
+      tileY: point.tileY
     });
     userName = user.get('name');
     unitName = unit.get('name');
@@ -760,7 +770,7 @@ ServerProtocol = {
     user = room.getUserById(userId);
     socket = user.get('socket');
     socket.on('actUnit', function(data) {
-      var commandCode, damageData, points, targets, tiles, unit, unitId;
+      var command, commandCode, damageData, points, targets, tiles, unit, unitId;
       unitId = data.unitId, points = data.points, commandCode = data.commandCode;
       if (!unitId) return;
       if (!commandCode) return;
@@ -773,22 +783,30 @@ ServerProtocol = {
       }
       tiles = room.grid.convertPoints(points);
       if (tiles.length === 0) return console.log('invalid points', points);
+      command = unit.getCommandByCode(commandCode);
+      if (unit.getStat('actions') - command.get('cost') < 0) return;
       damageData = unit.getDamageData(commandCode);
       targets = [];
+      unit.setStat({
+        actions: unit.getStat('actions') - command.get('cost')
+      });
       points.forEach(function(point) {
         var targetUnit, targetUnitStats, totalDamageData;
         targetUnit = room.units.find(function(u) {
           return u.get('tileX') === point.tileX && u.get('tileY') === point.tileY;
         });
         if (!targetUnit) return;
+        if (targetUnit.dead === true) return;
         totalDamageData = targetUnit.filterDamageData(damageData);
         targetUnitStats = targetUnit.receiveDamageData(totalDamageData);
-        return targets.push({
+        targets.push({
           unitId: targetUnit.id,
           damage: totalDamageData,
           stats: targetUnitStats
         });
+        if (targetUnit.getStat('health') === 0) return targetUnit.dead = true;
       });
+      if (targets.length === 0) return;
       after(1000, function() {
         return room.announce('actUnit', {
           unitId: unitId,
@@ -799,7 +817,7 @@ ServerProtocol = {
       return this;
     });
     socket.on('moveUnit', function(data) {
-      var conflictedTiles, face, moveCost, occupiedTiles, points, tiles, unit, unitAction, unitId;
+      var conflictedTiles, face, moveCost, points, tiles, unit, unitId;
       if (!data.unitId || !data.points) {
         return console.log("invalid unit and points", data);
       }
@@ -814,29 +832,28 @@ ServerProtocol = {
       }
       tiles = room.grid.convertPoints(points);
       if (tiles.length === 0) return console.log("invalid points", points);
-      unitAction = unit.stats.get('actions');
       moveCost = 0;
       unit.set({
         face: face
       });
-      occupiedTiles = room.units.map(function(u) {
-        return "" + (u.get('tileX')) + "_" + (u.get('tileY'));
-      });
       conflictedTiles = [];
       tiles.forEach(function(tile) {
-        var tileId;
+        var occupiedUnit, tileId;
         tileId = "" + (tile.get('tileX')) + "_" + (tile.get('tileY'));
         moveCost += tile.get('cost');
-        if (occupiedTiles.indexOf(tileId) > -1) conflictedTiles.push(tile);
+        occupiedUnit = room.getUnitByTileId(tileId);
+        if (occupiedUnit != null) {
+          if (occupiedUnit.dead !== true) conflictedTiles.push(tile);
+        }
       });
-      if (unitAction < moveCost) {
+      if (unit.getStat('actions') < moveCost) {
         return console.log("cost of movement is < actions", unitId);
       }
       if (conflictedTiles.length > 0) {
         return console.log("one of the tiles is occupied");
       }
-      unit.stats.set({
-        actions: unitAction - moveCost
+      unit.setStat({
+        actions: unit.getStat('actions') - moveCost
       });
       unit.move(tiles.last());
       ServerProtocol.moveUnit({
@@ -846,13 +863,30 @@ ServerProtocol = {
       });
     });
     socket.on('moveUnitEnd', function(data) {
-      var type, unit, unitId;
+      var deadUnit, tileX, tileY, type, unit, unitId;
       unitId = data.unitId, type = data.type;
       unit = room.getUnitById(unitId);
-      if (unit === void 0) return;
+      tileX = unit.get('tileX');
+      tileY = unit.get('tileY');
       if (userId !== unit.get('userId')) return;
+      if (unit === void 0) return;
       if (unit !== room.get('activeUnit')) return;
-      return ServerProtocol.nextUnitTurn(roomId);
+      deadUnit = room.units.find(function(u) {
+        return (u !== unit) && (u.get('tileX') === tileX && u.get('tileY') === tileY) && (u.dead === true);
+      });
+      if (deadUnit != null) {
+        room.announce('removeUnit', {
+          unitId: deadUnit.id
+        });
+      }
+      if (unit.getStat('actions') > 0) {
+        room.announce('unitTurn', {
+          unitId: unit.id,
+          message: "" + (user.get('name')) + "'s " + (unit.get('name')) + " is continuing its turn."
+        });
+      } else {
+        ServerProtocol.nextUnitTurn(roomId);
+      }
     });
     socket.on('skipTurn', function(data) {
       var unit, unitId;

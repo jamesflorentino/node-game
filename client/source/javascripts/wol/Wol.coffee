@@ -108,3 +108,5 @@ class Wol.Collections.Collection extends Wol.Events.EventDispatcher
     result[0]
 
   each: (callback) -> @collections.each callback
+  
+  at: (index) -> @collections[index]

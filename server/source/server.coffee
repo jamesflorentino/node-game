@@ -186,6 +186,10 @@ class Room extends Model
     user = @users.filter (user) -> user.id is userId
     user[0]
 
+  getUnitByTileId: (tileId) ->
+    @units.find (unit) ->
+      tileId is "#{unit.get('tileX')}_#{unit.get('tileY')}"
+
   announce: (eventName, data) ->
     console.log "Room Event: #{eventName}"
     console.log data
@@ -274,6 +278,7 @@ class Unit extends Model
     unitCommands = Wol.UnitCommands[unitCode]
     @commands = new Collection()
     @commands.add unitCommands
+    @dead = false
 
   # invoke this to perform a deduction/addition to the unit's stats
   # returns the unit's current stats
@@ -326,6 +331,9 @@ class Unit extends Model
     health: health
     shield: shield
     armor: armor
+
+  setStat: (data) ->
+    @stats.set data
 
   getStat: (statName) ->
     @stats.get statName
@@ -560,16 +568,17 @@ ServerProtocol =
     unit.set
       tileX: point.tileX
       tileY: point.tileY
-      moved: true
     userName = user.get 'name'
     unitName = unit.get 'name'
     tileX = points[points.length-1].tileX
     tileY=  points[points.length-1].tileY
+    # check for the last tile and remove any unit located there.
     after 1000, ->
       room.announce 'moveUnit',
         unitId: unitId
         points: points
         message: "#{user.get 'name'}'s #{unit.get 'name'} is moving to hex(#{tileX}, #{tileY})"
+
 
   nextUnitTurn: (roomId) ->
     room = ServerProtocol.getRoomById roomId
@@ -579,10 +588,8 @@ ServerProtocol =
     room = ServerProtocol.getRoomById roomId
     user = room.getUserById userId
     socket = user.get 'socket'
-    # ----------------------------------
-    # EVENTS
-    # ----------------------------------
-
+    # ///////////////////////////////////
+    # events
     socket.on 'actUnit', (data) ->
       {unitId, points, commandCode} = data
       return if !unitId
@@ -597,21 +604,28 @@ ServerProtocol =
       # disregard if the points given does not exist
       tiles = room.grid.convertPoints points
       return console.log('invalid points', points) if tiles.length is 0
+      # disregard if insufficient AP
+      command = unit.getCommandByCode commandCode
+      return if unit.getStat('actions') - command.get('cost') < 0
       # targets will be the affeced units from the operation
       damageData = unit.getDamageData commandCode
       targets = []
+      # deduct AP
+      unit.setStat actions: unit.getStat('actions') - command.get('cost')
       # populate the target list
       points.forEach (point) ->
         targetUnit = room.units.find (u) ->
           u.get('tileX') is point.tileX and u.get('tileY') is point.tileY
         return if !targetUnit
+        return if targetUnit.dead is true
         totalDamageData = targetUnit.filterDamageData damageData
         targetUnitStats = targetUnit.receiveDamageData totalDamageData
         targets.push
           unitId: targetUnit.id
           damage: totalDamageData
           stats: targetUnitStats
-
+        targetUnit.dead = true if targetUnit.getStat('health') is 0
+      return if targets.length is 0
       after 1000, ->
         room.announce 'actUnit',
           unitId: unitId
@@ -638,21 +652,26 @@ ServerProtocol =
       tiles = room.grid.convertPoints points
       return console.log("invalid points", points) if tiles.length is 0
       # verify the tile cost
-      unitAction = unit.stats.get 'actions'
       moveCost = 0
       unit.set face: face
-      occupiedTiles = room.units.map (u) -> "#{u.get('tileX')}_#{u.get('tileY')}"
       conflictedTiles = []
       tiles.forEach (tile) ->
         tileId = "#{tile.get('tileX')}_#{tile.get('tileY')}"
-        moveCost += tile.get('cost')
-        conflictedTiles.push(tile) if occupiedTiles.indexOf(tileId) > -1
+        moveCost += tile.get 'cost'
+        occupiedUnit = room.getUnitByTileId tileId
+        # check if a unit exists in the tile
+        if occupiedUnit?
+          # if the unit is dead then we allow the user to walk over it.
+          # dead units can be resurrected or consumed by other races. (future plan)
+          if occupiedUnit.dead isnt true
+            conflictedTiles.push(tile)
         return
         # check if the tiles have existing units on them.
-      return console.log("cost of movement is < actions", unitId) if unitAction < moveCost
+      return console.log("cost of movement is < actions", unitId) if unit.getStat('actions') < moveCost
       return console.log("one of the tiles is occupied") if conflictedTiles.length > 0
       # update the unit with the diminished stats
-      unit.stats.set actions: unitAction - moveCost
+      unit.setStat
+        actions: unit.getStat('actions') - moveCost
       # immediate set the unit's position the last tile destination
       unit.move tiles.last()
       ServerProtocol.moveUnit
@@ -668,11 +687,29 @@ ServerProtocol =
     socket.on 'moveUnitEnd', (data) ->
       {unitId, type} = data
       unit = room.getUnitById unitId
-      return if unit is undefined
+      tileX = unit.get 'tileX'
+      tileY = unit.get 'tileY'
+      # if the sender isn't the unit owner.
       return if userId isnt unit.get('userId')
+      # if invalid unitId
+      return if unit is undefined
+      # if unit isn't the active unit
       return if unit isnt room.get('activeUnit')
-      # temporary for now
-      ServerProtocol.nextUnitTurn roomId
+      # check if there's an existing unit on top of it
+      deadUnit = room.units.find (u) ->
+        (u isnt unit) and (u.get('tileX') is tileX and u.get('tileY') is tileY) and (u.dead is true)
+      # reomve the unit from the client
+      if deadUnit?
+        room.announce 'removeUnit',
+          unitId: deadUnit.id
+      # let the unit proceed with the game
+      if unit.getStat('actions') > 0
+        room.announce 'unitTurn',
+          unitId: unit.id
+          message: "#{user.get('name')}'s #{unit.get('name')} is continuing its turn."
+      else
+        ServerProtocol.nextUnitTurn roomId
+      return
 
     socket.on 'skipTurn', (data) ->
       {unitId} = data

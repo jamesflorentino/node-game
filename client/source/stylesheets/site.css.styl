@@ -552,3 +552,33 @@ body
 
   .avatar.marine
     background-position 0px 0px
+
+
+#game-over
+
+  position absolute
+  top 0
+  right 0
+  bottom 0
+  left 0
+  box-shadow 0 0 125px 125px rgba(1,1,1,0.5) inset
+
+  h2.title
+    font-family "Orbitron", sans-serif
+    font-size 24px
+    text-align center
+    //background rgba(1,1,1,0.9)
+    box-shadow 0 0 40px 40px rgba(1,1,1,0.9) inset
+    padding 30px 0 30px 0
+    position absolute
+    top 100px
+    left 0
+    right 0
+
+  &.success
+    h2.title
+      color #0c0
+
+  &.failure
+    h2.title
+      color #c00
