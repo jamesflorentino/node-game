@@ -14,6 +14,7 @@ Wol = @Wol
 {AssetLoader, Views, Models, Collections, Ui, Settings} = Wol
 
 window.debug = false
+#window.debug = true
 
 # dump basic rendering events here
 class Renderer extends Views.View
@@ -80,6 +81,7 @@ class GameUi extends Renderer
       unitContainer: new Views.UnitContainer()
       gaugeContainer: new Views.GaugeContainer()
       damageCounter: new Views.DamageCounter()
+      actionPoints: new Views.ActionPoints()
       viewport: new Container()
 
     @elements.viewport.addChild @elements.terrain
@@ -89,6 +91,7 @@ class GameUi extends Renderer
     @elements.viewport.addChild @elements.unitContainer.el
     @elements.viewport.addChild @elements.gaugeContainer.el
     @elements.viewport.addChild @elements.damageCounter.el
+    @elements.viewport.addChild @elements.actionPoints.el
 
     # add the elements to the stage
     # for `View` instances, they should have an `@el` property
@@ -172,7 +175,7 @@ class Views.GameView extends GameUi
         baseArmor: 100
         baseShield: 0
         baseEnergy: 10
-        baseActions: 4
+        baseActions: 6
         health: 80
         armor: 10
         shield: 5
@@ -186,7 +189,7 @@ class Views.GameView extends GameUi
     unit_b = @addUnit
       message: 'debug add unit'
       unitId: String().randomId()
-      userId: userB.get('userId')
+      userId: user.get('userId')
       tileX: 4
       tileY: 3
       unitCode: 'lemurian_marine'
@@ -211,6 +214,7 @@ class Views.GameView extends GameUi
     @ui.curtain.hide()
     @startGame()
     after 1000, =>
+      # rrr
       mode = 'move'
       mode = 'act'
       switch mode
@@ -236,7 +240,7 @@ class Views.GameView extends GameUi
                 health: 25
             ]
       return
-    after 5000, => @pause()
+    #after 5000, => @pause()
     this
 
   startGame: =>
@@ -400,16 +404,20 @@ class Views.GameView extends GameUi
         if options?
           if options.multiplier?
             damageData.health *= options.multiplier
-        gauge.update
-          baseHealth: stats.baseHealth or unit.getStat('baseHealth')
-          health: stats.health
         # show the damage animation
         @elements.damageCounter.show
           x: unit.el.x
           y: unit.el.y - unit.height
           damage: damageData.health
         # dispatch a hit unit for animation
+        # also set the new health
         unit.hit()
+        unit.setStat
+          health: unit.getStat('health') - damageData.health
+        # set the health gauge
+        gauge.update
+          baseHealth: stats.baseHealth or unit.getStat('baseHealth')
+          health: unit.getStat('health')
     # add an attack tile indicator below all affected units
     # tell the units to perform a defend animation
     targets.each (targetData) =>
@@ -424,7 +432,7 @@ class Views.GameView extends GameUi
   # ///////////////////////////////////////////////
   # GameUi.unitTurn
   unitTurn: (data) =>
-    {unitId, message} = data
+    {unitId, message, stats} = data
     @ui.console.log message
     unit = @elements.unitContainer.getUnitById unitId
     # add a hexagonal tile to the current tile the unit is positioned to
@@ -439,7 +447,8 @@ class Views.GameView extends GameUi
     @ui.unitMenu.show x: menuX, y: menuY
     # unit Menu Events
     @ui.unitMenu.unbind()
-
+    unit.setStat
+      actions: stats.actions
     # -----------------------------------------------------------------
     # ACTION: SKIP UNIT TURN
     # -----------------------------------------------------------------
@@ -466,6 +475,8 @@ class Views.GameView extends GameUi
       tiles.generated = [] # a tile graphic that is generated from a selected tile
       tiles.adjacent = unitTile.getAdjacentPoints().map (p) -> "#{p.x}_#{p.y}" # assign the next set for cpu usage.
       actionPoints = unit.getStat 'actions'
+      @elements.actionPoints.setValues actionPoints, unit.getStat 'baseActions'
+      @elements.actionPoints.position unit.el.x, unit.el.y - unit.height + 10
       # display states
       @ui.cancelButton.show()
       @ui.topVignette.show()
@@ -484,6 +495,7 @@ class Views.GameView extends GameUi
         @elements.hexLine.clear()
         @elements.hexContainer.removeTiles tiles.move if tiles.move?
         @elements.hexContainer.removeTiles tiles.generated if tiles.generated?
+        @elements.actionPoints.hide()
         return
       # confirm events
       @ui.confirm.unbind()
@@ -492,10 +504,12 @@ class Views.GameView extends GameUi
         @elements.hexContainer.removeTiles tiles.generated if tiles.generated?
         @ui.confirm.hide()
         # reset the Action Points
+        actionPoints = unit.getStat 'actions'
+        @elements.actionPoints.setValues actionPoints, unit.getStat 'baseActions'
+        # reset the tiles
         tiles.selected = []
         tiles.generated = []
         tiles.adjacent = unitTile.getAdjacentPoints().map (p) -> "#{p.x}_#{p.y}" # assign the next set for cpu usage.
-        actionPoints = unit.getStat 'actions'
         @elements.hexLine.start unitTile.x, unitTile.y
       # when the user confirms the tile movement selection
       @ui.confirm.bind 'confirm', =>
@@ -510,6 +524,7 @@ class Views.GameView extends GameUi
         @elements.hexContainer.removeTiles tiles.selected if tiles.selected?
         @elements.hexContainer.removeTiles tiles.generated if tiles.generated?
         @elements.hexContainer.removeTile unitTile
+        @elements.actionPoints.hide()
         @ui.confirm.unbind()
         @ui.cancelButton.unbind()
         @ui.unitMenu.unbind 'move'
@@ -533,6 +548,7 @@ class Views.GameView extends GameUi
           # cancel if there's an occupant in the tile
           return if @isOccupiedTileById(tile.id)
           actionPoints -= tile.cost
+          @elements.actionPoints.deduct 1
           tiles.selected.push tile
           tiles.generated.push ( =>
             t = @elements.hexContainer.addTile {tileX: tile.tileX, tileY: tile.tileY}, 'move'
@@ -548,17 +564,17 @@ class Views.GameView extends GameUi
         return # tiles.move.forEach end
       return # end move event
 
-    # -----------------------------------------------------------------
-    # ACTION: ACT UNIT
-    # -----------------------------------------------------------------
+    # /////////////////////////////////////////////////////////////////
+    # unitTurn -> act
     @ui.unitMenu.bind 'act', =>
       commands = unit.commands.collections.map (item) -> item.attributes
       tiles = @elements.hexContainer.get 'selection'
+      actionPoints = unit.getStat 'actions'
       # initialize
       @ui.commandList.show x: menuX, y: menuY
       @ui.unitMenu.hide()
       # when show the commands and assign event handlers to them
-      @ui.commandList.generate(commands)
+      @ui.commandList.generate(commands, actions: actionPoints)
       @ui.commandList.unbind('cancel').bind 'cancel', =>
         @ui.commandList.unbind()
         @ui.cancelButton.unbind()
@@ -567,10 +583,14 @@ class Views.GameView extends GameUi
         @ui.unitMenu.show()
       # bind events from the command list
       @ui.commandList.unbind('command').bind 'command', (commandData) =>
+        {cost} = commandData
         @ui.topVignette.show()
         @ui.cancelButton.show()
         @ui.commandList.hide()
         @ui.console.hide()
+        # show the action point gauge
+        @elements.actionPoints.setValues actionPoints, unit.getStat 'baseActions'
+        @elements.actionPoints.position unit.el.x, unit.el.y - unit.height
         # show the radius of the tiles
         tiles.move = @elements.hexContainer.addTilesByPoints(
           unitTile.getAdjacentPoints(radius: commandData.radius)
@@ -590,6 +610,11 @@ class Views.GameView extends GameUi
             # cancel if already in the list
             return if tiles.selected.indexOf(tile) > -1
             tiles.selected.push tile
+            # cancel if insufficient points
+            actionPoints = unit.getStat 'actions'
+            return if actionPoints - cost < 0
+            # show the action point gauge
+            @elements.actionPoints.deduct cost
             @elements.hexContainer.removeTiles tiles.move if tiles.move?
             # generated tiles are the tiles whose tileId gets sent to the server
             # we only send the currently selected tile.
@@ -618,6 +643,7 @@ class Views.GameView extends GameUi
               @ui.unitMenu.show()
               @elements.hexContainer.removeTiles tiles.generated if tiles.generated?
               @elements.hexContainer.removeTiles tiles.move if tiles.move?
+              @elements.actionPoints.setValues actionPoints, unit.getStat 'baseValue'
             # confirm events > confirm
             @ui.confirm.unbind('confirm').bind 'confirm', =>
               @ui.confirm.unbind()
@@ -627,6 +653,7 @@ class Views.GameView extends GameUi
               @ui.topVignette.hide()
               @elements.hexContainer.removeTiles tiles.generated if tiles.generated?
               @elements.hexContainer.removeTiles tiles.move if tiles.move?
+              @elements.actionPoints.hide()
               @model.send 'actUnit',
                 unitId: unitId
                 commandCode: commandData.code
@@ -635,7 +662,6 @@ class Views.GameView extends GameUi
               delete tiles.selected
               delete tiles.move
               delete tiles.generated
-
         # initiate the cancel button
         @ui.cancelButton.unbind('cancel').bind 'cancel', =>
           @elements.hexContainer.removeTiles tiles.move if tiles.move?

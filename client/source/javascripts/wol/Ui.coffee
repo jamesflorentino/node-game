@@ -80,12 +80,16 @@ class Ui.CommandList extends Modal
       """
     @cancelButton.click => @trigger 'cancel'
 
-  generate: (list) ->
+  generate: (list, options) ->
+    {actions} = options
     @list.empty()
     list.forEach (item, i) =>
       li = $ @tpl
         name: item.name
         cost: item.cost
-      li.click => @trigger 'command', item
+      if actions - item.cost >= 0
+        li.click => @trigger 'command', item
+      else
+        li.addClass 'insufficient'
       @list.append li
     this

@@ -566,7 +566,10 @@ ServerProtocol = {
       });
       room.announce('unitTurn', {
         unitId: unitId,
-        message: message
+        message: message,
+        stats: {
+          actions: unit.getStat('actions')
+        }
       });
       return console.log(message);
     });
@@ -611,8 +614,11 @@ ServerProtocol = {
       });
       ServerProtocol.assignEvents(userId, roomId);
     }
+    socket.on('reconnect', function() {
+      return console.log("" + userName + " reconnected to " + roomName);
+    });
     socket.on('disconnect', function() {
-      console.log("" + userName + " left " + roomName);
+      console.log("" + userName + " disconnected from " + roomName);
       room.removeUser(user);
       if (room.users.length === 0) {
         room.set({
@@ -817,7 +823,7 @@ ServerProtocol = {
       return this;
     });
     socket.on('moveUnit', function(data) {
-      var conflictedTiles, face, moveCost, points, tiles, unit, unitId;
+      var conflictedTiles, face, points, tiles, totalActions, unit, unitId;
       if (!data.unitId || !data.points) {
         return console.log("invalid unit and points", data);
       }
@@ -831,8 +837,17 @@ ServerProtocol = {
         return console.log("user isn't the active user");
       }
       tiles = room.grid.convertPoints(points);
-      if (tiles.length === 0) return console.log("invalid points", points);
-      moveCost = 0;
+      if (tiles.length === 0) {
+        room.announce('unitTurn', {
+          unitId: unit.id,
+          stats: {
+            actions: unit.getStat('actions')
+          },
+          message: "<Invalid tiles> " + (user.get('name')) + "'s " + (unit.get('name')) + " is continuing its turn."
+        });
+        return;
+      }
+      totalActions = 0;
       unit.set({
         face: face
       });
@@ -840,20 +855,20 @@ ServerProtocol = {
       tiles.forEach(function(tile) {
         var occupiedUnit, tileId;
         tileId = "" + (tile.get('tileX')) + "_" + (tile.get('tileY'));
-        moveCost += tile.get('cost');
+        totalActions += tile.get('cost');
         occupiedUnit = room.getUnitByTileId(tileId);
         if (occupiedUnit != null) {
           if (occupiedUnit.dead !== true) conflictedTiles.push(tile);
         }
       });
-      if (unit.getStat('actions') < moveCost) {
+      if (unit.getStat('actions') < totalActions) {
         return console.log("cost of movement is < actions", unitId);
       }
       if (conflictedTiles.length > 0) {
         return console.log("one of the tiles is occupied");
       }
       unit.setStat({
-        actions: unit.getStat('actions') - moveCost
+        actions: unit.getStat('actions') - totalActions
       });
       unit.move(tiles.last());
       ServerProtocol.moveUnit({
@@ -882,6 +897,9 @@ ServerProtocol = {
       if (unit.getStat('actions') > 0) {
         room.announce('unitTurn', {
           unitId: unit.id,
+          stats: {
+            actions: unit.getStat('actions')
+          },
           message: "" + (user.get('name')) + "'s " + (unit.get('name')) + " is continuing its turn."
         });
       } else {

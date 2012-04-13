@@ -217,9 +217,9 @@ body
   @extend .button
   width 145px
   height 47px
-  margin-left -72px
-  left 50%
+  right: 35px
   top 35px
+  margin-top 10px
   background-position 0px -179px
   color white
   z-index 1
@@ -402,6 +402,17 @@ body
       transition 200ms 
       position relative
 
+      &.insufficient
+        opacity: 0.3
+        .cost
+          color: white
+
+      &.insufficient:hover
+        color inherit
+        background inherit
+        box-shadow none
+        opacity 0.3
+
       span
         //text-shadow 0 0 5px rgba(0,255,250,0.75)
 
@@ -431,128 +442,122 @@ body
       background-color rgba(255,5,5,0.5)
 
 
-.unit_info
-  z-index 100
+///////////////////////////////////////////////////
+// Unit Info
+///////////////////////////////////////////////////
+#unit-info-you
   position absolute
-  top 10px
-  left 10px
-  border 1px solid
-  background rgba(0,68,68,0.5)
-  border-top-color rgba(0,185,185,0.5)
-  border-bottom-color rgba(0,15,15,0.5)
-  border-left-color rgba(0,100,100,0.5)
-  border-right-color rgba(0,100,100,0.5)
-  border-color rgba(0,185,185,0.5)
-  width 270px
-  height 87px
+  top 0
+  left 0
 
-  margin = 5px
-
-  .avatar
-    background rgba(1,1,1,0.5)
-    position absolute
-    width 75px
-    height 75px
-    top margin
-    left margin
-    border 1px solid #207372
+.unit_info
+  position absolute
+  top 0
+  left 0
+  width 400px
+  height 130px
+  margin 25px
 
   .stats
     position absolute
-    left 75px + margin + 1px
-    right margin
-    height 75px
-    top margin
-    background rgba(1,1,1,0.5)
-    border 1px solid #207372
+    left 95px
+    top 0px
+    right 0px
+    color #9cc
 
-    .unit_name
+    h4.unit_name
+      font-family 'Orbitron'
+      font-weight bold
+      font-size 18px
+      text-shadow 0 0 10px rgba(0,255,255,1)
+      text-transform uppercase
       margin 0
       padding 0
-      font-family 'Orbitron', 'verdana', sans-serif
-      font-weight 200
-      font-size 14px
-      height 30px
-      line-height 34px
-      text-indent 8px
-      
-    .gauge
-      font-size 12px
-      font-family 'Play', 'verdana', sans-serif
+      line-height inherit
+      color white
+      width auto
+    
+    .roles
+      font-family 'Play'
       font-weight bold
-      position relative
-      margin-left margin * 2
-      white-space nowrap
+      text-transform uppercase
+      font-size 14px
 
-      &.energy
-        COLOR = #ff32df
+.unit_info .gauge
+  position relative
+  height 15px
+  margin-top 5px
 
-        .name
-          color COLOR
+  .name, .values
+    font-size 14px
+    font-family 'Play'
+    text-transform uppercase
+    font-weight bold
 
-        .background
-          background-color #99238b
+  .name
+    position absolute
+    z-index 2
+    color white
+    text-shadow 0 1px 1px black
+    left 5px
+    top -1px
 
-          .bar
-            background-color COLOR
-            box-shadow 0 0 1px #ff62ff inset
+  .bar
+    position absolute
+    bottom: 0
+    left 0
+    .total, .value
+      width 175px
+      border-radius 5px
+    .total
+      width 165px
+      height 12px
+      background white
+      opacity 0.5
+    .value
+      position absolute
+      top -3px
+      left: 0
+      background white
+      height 15px
+      z-index 1
+  .values
+    position absolute
+    left 175px
+    top 0
+    margin-left 10px
+    text-transform uppercase
+    .total
+      opacity 0.5
+  
+.unit_info > .avatar
+  background url(../images/portraits.png)
+  background-position -9999px -9999px
+  position absolute
+  top 0
+  left 0
+  width 83px
+  height 86px
 
-      &.health
-        COLOR = #00cf22
-
-        .name
-          color COLOR
-
-        .background
-          background-color #008119
-
-          .bar
-            background-color COLOR
-            box-shadow 0 0 1px #00ff42 inset
-
-      > *
-        position relative
-        display inline-block
-
-      .name
-        width 17px
-
-      .background, .background > .bar
-        background rgba(255,255,255,0.3)
-        height 6px
-        width 90px
-        margin-left 5px
-      
-      .background >.bar
-        background rgba(255,255,255,1)
-        border-bottom 1px solid rgba(1,1,1,0.75)
-        position absolute
-        display block
-        margin-left -2px
-        margin-top -3px
-        transition 400ms
-        -webkit-transform-origin top left
-      
-      .numeric
-        margin-left 5px
-        color inherit
-
-        .total
-          font-size 10px
-          opacity .5
-          display inline-block
-          margin-left 2px
+  &.marine
+    background-position 0 0
 
 .unit_info
+  .gauge .bar
+    .value, .total
+      background top left url(../images/patterns_gauges.png) repeat-x
 
-  .avatar
-    background-image url(../images/portraits.png)
-    background-repeat no-repeat
-    background-position -9999px -9999px
+  .gauge.energy
+    .bar
+      .total, .value
+        background-position 0 -15px
 
-  .avatar.marine
-    background-position 0px 0px
 
+
+
+///////////////////////////////////////////////////
+// Game Over
+///////////////////////////////////////////////////
 
 #game-over
 

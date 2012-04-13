@@ -404,6 +404,8 @@ ServerProtocol =
       room.announce 'unitTurn',
         unitId: unitId
         message: message
+        stats:
+          actions: unit.getStat 'actions'
       console.log message
   
     ServerData.rooms.push room
@@ -443,9 +445,12 @@ ServerProtocol =
       user.set playerNumber: players.length
       ServerProtocol.assignEvents userId, roomId
 
+    socket.on 'reconnect', ->
+      console.log "#{userName} reconnected to #{roomName}"
+
     # when the user disconnects, remove him from the list
     socket.on 'disconnect', ->
-      console.log "#{userName} left #{roomName}"
+      console.log "#{userName} disconnected from #{roomName}"
       room.removeUser user
       if room.users.length is 0
         room.set ready: false
@@ -642,22 +647,28 @@ ServerProtocol =
       return console.log("invalid unit and points", data) if !data.unitId or !data.points
       {face, unitId, points} = data
       # cancel if the unit doesn't exist
+      # cancel if the specified unit isnt't the room's active unit
+      # do not issue comands if the client isnt' the acive player
       unit = room.getUnitById unitId
       return console.log("invalid unitId", unitId) if !unit
-      # cancel if the specified unit isnt't the room's active unit
       return console.log("unit is not hte active unit") if room.get('activeUnit') isnt unit
-      # do not issue comands if the client isnt' the acive player
       return console.log("user isn't the active user") if unit.get('userId') isnt userId
-      # cancel if the sent grid doesn't exist too
+      # if the grid doesn't exist, have the unit re-take its turn.
       tiles = room.grid.convertPoints points
-      return console.log("invalid points", points) if tiles.length is 0
+      if tiles.length is 0
+        room.announce 'unitTurn',
+          unitId: unit.id
+          stats:
+            actions: unit.getStat 'actions'
+          message: "<Invalid tiles> #{user.get('name')}'s #{unit.get('name')} is continuing its turn."
+        return
       # verify the tile cost
-      moveCost = 0
+      totalActions = 0
       unit.set face: face
       conflictedTiles = []
       tiles.forEach (tile) ->
         tileId = "#{tile.get('tileX')}_#{tile.get('tileY')}"
-        moveCost += tile.get 'cost'
+        totalActions += tile.get 'cost'
         occupiedUnit = room.getUnitByTileId tileId
         # check if a unit exists in the tile
         if occupiedUnit?
@@ -667,11 +678,11 @@ ServerProtocol =
             conflictedTiles.push(tile)
         return
         # check if the tiles have existing units on them.
-      return console.log("cost of movement is < actions", unitId) if unit.getStat('actions') < moveCost
+      return console.log("cost of movement is < actions", unitId) if unit.getStat('actions') < totalActions
       return console.log("one of the tiles is occupied") if conflictedTiles.length > 0
       # update the unit with the diminished stats
       unit.setStat
-        actions: unit.getStat('actions') - moveCost
+        actions: unit.getStat('actions') - totalActions
       # immediate set the unit's position the last tile destination
       unit.move tiles.last()
       ServerProtocol.moveUnit
@@ -706,6 +717,8 @@ ServerProtocol =
       if unit.getStat('actions') > 0
         room.announce 'unitTurn',
           unitId: unit.id
+          stats:
+            actions: unit.getStat 'actions'
           message: "#{user.get('name')}'s #{unit.get('name')} is continuing its turn."
       else
         ServerProtocol.nextUnitTurn roomId

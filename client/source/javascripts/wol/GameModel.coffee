@@ -3,7 +3,8 @@
 window.DEBUG = false
 
 HOST = 'http://localhost:1337'
-HOST = 'http://192.168.254.104:1337'
+HOST = 'http://192.168.254.105:1337'
+#HOST = 'http://192.168.1.104:1337'
 
 @Wol
 @io
@@ -41,7 +42,7 @@ class Wol.Models.GameModel extends Wol.Models.Model
       return
 
     @socket.on 'disconnect', (data) =>
-      @trigger 'disconnect', data
+      #@trigger 'disconnect', data
       return
 
     @socket.on 'setUserName', (data) =>

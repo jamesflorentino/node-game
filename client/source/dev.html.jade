@@ -4,8 +4,9 @@ append head
     window.onload = function () {
       var unit_info = document.querySelector('#unit-info-you');
       var healthbar = unit_info.querySelector(".health > .background > .bar")
-      unit_info.className = "";
+      unit_info.querySelector(".avatar").className = "avatar marine";
       document.querySelector("#curtain").className =  "hidden";
-      document.querySelector("#game-over").className = "failure";
-      healthbar.style.webkitTransform = 'scaleX(0.1)';
+      document.querySelector("#game-over").className = "hidden";
+      document.querySelector("#cancel-button").className = "";
+      unit_info.className = "";
     }

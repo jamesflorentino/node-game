@@ -43,7 +43,7 @@ Wol.UnitStats['lemurian_marine'] = {
     baseEnergy: 10,
     baseShield: 0,
     baseArmor: 0,
-    baseActions: 4,
+    baseActions: 6,
     health: 300,
     energy: 5,
     shield: 0,
@@ -89,13 +89,13 @@ Wol.UnitCommands['lemurian_marine'] = [
   {
     name: 'Pulse Rifle Shot',
     code: 'marine_pulse_rifle_shot',
-    cost: 1,
+    cost: 7,
     type: 'linear',
     radius: 3,
     affinity: 'physical',
     damage: {
       health: {
-        value: 300,
+        value: 100,
         bonus: 10
       },
       shield: {
