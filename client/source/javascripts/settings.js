@@ -1,7 +1,7 @@
 Wol.AssetList = [
   {
     name: 'background',
-    url: '/images/background_mars.png'
+    url: '/images/background_mars_hd.png'
   },{
     name: 'terrain',
     url: '/images/terrain_mars_lighter.png'
@@ -10,7 +10,7 @@ Wol.AssetList = [
     url: '/images/hex.png'
   },{
     name: 'hex_bg',
-    url: '/images/hex_bg.png'
+    url: '/images/hex_bg_dark.png'
   },{
     name: 'hex_move',
     url: '/images/hex_move.png'
@@ -36,29 +36,14 @@ Wol.AssetList = [
 ];
 
 Wol.Settings = {
-  gameWidth: 960,
-  gameHeight: 640,
-  terrainX: 0,
-  terrainY: 150,
+  gameWidth: 1024,
+  gameHeight: 768,
+  terrainX: 40,
+  terrainY: 250,
   columns: 7,
-  rows: 6
+  rows: 7
 };
 
 Wol.UnitNames = {
   MARINE: 'lemurian_marine'
-};
-
-Wol.UnitStats = {};
-Wol.UnitStats[Wol.UnitNames.MARINE] = {
-  id: ''.randomId(10),
-  name: 'Lemurian Marine',
-  stats: {
-    baseHealth: 100,
-    baseEnergy: 10,
-    health: 80,
-    energy: 5,
-    actions: 4,
-    moveRadius: 3,
-    charge: 100
-  }
 };

@@ -24,8 +24,11 @@ class Ui.Console extends Modal
     @el = $ "#console"
     @logs = @el.find 'ul'
     @logs.empty()
+    @hide()
   
   log: (message) -> @logs.append @tpl message: message
+  show: -> this
+  hide: -> @el.hide()
 
 class Ui.UnitMenu extends Modal
 
@@ -93,3 +96,56 @@ class Ui.CommandList extends Modal
         li.addClass 'insufficient'
       @list.append li
     this
+
+class Ui.Disconnected extends Modal
+  init: ->
+    @el = $ "#disconnected"
+    @title = @el.find 'h2'
+    @el.find('.confirm').click ->
+      window.location.reload true
+      return
+
+  message: (message) ->
+    console.log 'disconnected', message
+    @title.text message
+
+# /////////////////////////////
+class Ui.UnitInfo extends Modal
+  init: ->
+    @el = $ "#unit-info-you"
+    @avatar = @el.find '.avatar'
+    @unitName = @el.find '.unit_name'
+    @roles = @el.find '.roles'
+    @gaugeHP = @el.find '.health.gauge'
+    @gaugeEP = @el.find '.energy.gauge'
+    @barWidthHealth = @gaugeHP.find('.bar .value').width()
+    @barWidthEnergy = @gaugeEP.find('.bar .value').width()
+
+  data: (unit) ->
+    health = unit.getStat 'health'
+    energy = unit.getStat 'energy'
+    baseHealth = unit.getStat 'baseHealth'
+    baseEnergy = unit.getStat 'baseEnergy'
+    console.log 'unitRole', unit.get 'unitRole'
+    @avatar.addClass unit.get 'unitCode'
+    @unitName.text unit.get 'unitName'
+    @roles.text unit.get 'unitRole'
+    @gaugeHP.find('.bar .value').width @barWidthHealth * (health / baseHealth)
+    @gaugeEP.find('.bar .value').width @barWidthEnergy * (energy / baseEnergy)
+    @gaugeHP.find('.values .value').text health
+    @gaugeHP.find('.values .total').text "/#{baseHealth}"
+    @gaugeEP.find('.values .value').text energy
+    @gaugeEP.find('.values .total').text "/#{baseEnergy}"
+
+  ###
+  show: ->
+    @el.removeClass 'active'
+    after 0, =>
+      @el.removeClass 'hidden'
+      @el.addClass 'active'
+  ###
+
+
+class Ui.EndGame extends Modal
+  init: ->
+    @el = $ "#endgame"

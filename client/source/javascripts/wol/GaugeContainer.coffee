@@ -78,13 +78,13 @@ class Gauge extends Model
     {baseShield, baseArmor, baseHealth} = stats
     {shield, armor, health} = stats
     if baseHealth > 0
-      @healthBar.scaleX = health / baseHealth
+      @healthBar.scaleX = Math.max 0, health / baseHealth
     if baseArmor?
       if baseArmor > 0
-        @armorBar.scaleX = armor / baseArmor
+        @armorBar.scaleX = Math.max 0, armor / baseArmor
     if baseShield?
       if baseShield > 0
-        @shieldBar.scaleX = shield / baseShield
+        @shieldBar.scaleX = Math.max 0 , shield / baseShield
     this
 
   position: (x, y) ->

@@ -25,10 +25,8 @@ Wol.AssetList = [
 ];
 
 Wol.Settings = {
-  terrainX: -60,
-  terrainY: 150,
-  columns: 7,
-  rows: 7
+  columns: 8,
+  rows: 8
 };
 
 
@@ -38,6 +36,7 @@ Wol.Settings = {
 Wol.UnitStats = {};
 Wol.UnitStats['lemurian_marine'] = {
   name: 'Lemurian Marine',
+  role: 'infantry',
   stats: {
     baseHealth: 300,
     baseEnergy: 10,
@@ -89,13 +88,13 @@ Wol.UnitCommands['lemurian_marine'] = [
   {
     name: 'Pulse Rifle Shot',
     code: 'marine_pulse_rifle_shot',
-    cost: 7,
+    cost: 3,
     type: 'linear',
-    radius: 3,
+    radius: 8,
     affinity: 'physical',
     damage: {
       health: {
-        value: 100,
+        value: 350,
         bonus: 10
       },
       shield: {

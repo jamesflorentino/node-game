@@ -11,9 +11,12 @@ Array::random = ->
   index = Math.round index
   this[index]
 
+Array::at = (i) -> @[i]
+Array::first = -> @at 0
 Array::last = -> @[@length-1]
 Array::find = (cb) -> @filter(cb)[0]
-Array::each = (cb) -> @forEach cb
+Array::each = (cb) ->
+  cb item for item in this
 
 window.implement = (obj, prop) ->
   if prop instanceof Object

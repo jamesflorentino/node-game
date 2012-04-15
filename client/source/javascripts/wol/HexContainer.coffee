@@ -40,6 +40,7 @@ class Wol.Views.HexContainer extends Wol.Views.View
     hex.x = Wol.Views.Hex::width * tileX
     hex.y = (Wol.Views.Hex::height - Wol.Views.Hex::offsetY) * tileY
     hex.x += Wol.Views.Hex::offsetX if tileY % 2
+    hex.onClick = => @trigger 'hex', "#{tileX}_#{tileY}"
     @background.addChild hex
 
 

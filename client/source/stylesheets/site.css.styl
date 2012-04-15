@@ -60,6 +60,80 @@ offset(t,r,b,l)
   to
     transform scaleY(0)
 
+@keyframes unit_menu
+  from
+    transform translateX(200px)
+    opacity 0
+  to
+    transform translateX(0)
+    opacity 1
+
+@keyframes pop
+  from
+    transform scale(0,0)
+    opacity 0.5
+
+  to
+    transform scale(1,1)
+    opacity 1
+
+@keyframes unit_menu_out
+  from
+    transform translateX(0)
+    opacity 1
+  to
+    
+    transform translateX(200px)
+    opacity 0
+
+@keyframes pop_out
+  from
+    transform scale(1,1)
+    opacity 1
+  to
+    transform scale(0,0)
+    opacity 0.5
+
+@keyframes cancel_animate
+  from
+    transform translateY(-100px)
+  to
+    transform translateY(0px)
+
+@keyframes endgame_bg
+  from
+    opacity 0
+  to
+    opacity 1
+    box-shadow 0 0 800px 1em black inset
+
+@keyframes endgame_herald
+  from
+    opacity 0
+    transform scaleX(0)
+  to
+    opacity 1
+    transform scaleX(1)
+
+@keyframes endgame_title
+  0%
+    transform scale(3,0)
+    text-shadow none
+    opacity 0
+  20%
+    opacity 1
+  75%
+    transform scaleY(1,1)
+    text-shadow 0 0 10px #0ff
+  75%
+    opacity 1
+  80%
+    opacity 0.75
+  83%
+    opacity 1
+  100%
+    text-shadow 0 0 30px #0fe
+
 // selectables
 .unselectable
   user-select: none
@@ -102,12 +176,12 @@ body
     backface-visibility hidden
 
 #game
-  width 960px
-  height 640px
+  width 1024px
+  height 768px 
   overflow hidden
   position absolute
   background black
-  background-image url(../images/background_mars.png)
+  background-image url(../images/background_mars_hd.png)
   top 0
   left 0
 
@@ -168,103 +242,79 @@ body
 
 #unit-menu
   @extend .modal
-  width = 128px
-  height = 91px
+  width = 242px
+  height = 86px
   width width
   height height
   margin-left width * -0.5
   margin-top height * -0.5
-  background top left no-repeat
-  background-image url(../images/ui_menu.png)
+  top 120px
+  //left 600px
+  right 50px
   font-size 12px
   text-transform uppercase
   color white
   position absolute
+  z-index 1
 
   .move
   .act
   .skip
     @extend .button
-    display block
-    position absolute
-    width 46px
-    height 46px
+    display inline-block
+    width 99px
+    height 0
+    padding-top 86px
     line-height 46px
-    text-align center
-    margin-top -17px
+    overflow hidden
+    position absolute
     background top left no-repeat
+    background-image url(../images/unit_menu.png)
+    top 0
+    left 0
+    opacity 0.7
 
     &:hover
-      background-image url(../images/ui_menu.png)
-
-  .move
-    top 40px
-    left 3px
-    background-position -1px -89px
+      opacity 1
 
   .act
-    top 16px
-    left 41px
-    background-position -1px -131px
+    background-position 0 -86px
+    top -43px
+    left 73px
 
   .skip
-    top 40px
-    left 79px
-    background-position -52px -90px
+    background-position 0 -172px
+    left 144px
 
 #cancel-button
-  @extend .sprite
   @extend .button
-  width 145px
-  height 47px
+  width 98px
+  height 0
+  overflow hidden
+  padding-top 85px
   right: 35px
   top 35px
-  margin-top 10px
-  background-position 0px -179px
+  background url(../images/unit_menu.png) no-repeat
+  background-position 0px -259px
   color white
   z-index 1
   position absolute
-  transition 500ms 10ms easeInOutBack
+  opacity 0.6
+  
+  &.active
+    animation cancel_animate 400ms easeInOutCirc 0ms backwards
 
-  &.hidden
-    visibility visible
-    transform translateY(-85px)
-
-  .icon
-    transition 200ms
-    transform scale(0)
-    opacity 0
-
-  &:hover .icon
-    transform scale(1)
+  &:hover
     opacity 1
   
-  height = 47px
-
-  .button
-    font-size 14px
-    font-weight bold
-    height height
-    line-height height - 2
-    text-indent 30px
-    text-shadow 0 2px 2px rgba(0,0,0,0.8)
-  
-  .icon
-    @extend .sprite
-    width 46px
-    height 37px
-    background-position -97px -134px
-    position absolute
-    top 3px
-    right 3px
-
 
 #top-vignette
   background rgba(1,1,1,0.5)
-  height 120px
-  width 100%
+  height 150px
   position absolute
   top 1px
+  left 0
+  right 0
   transition 400ms easeInOutQuint
   &.hidden
     transform translateY(-120px)
@@ -314,23 +364,22 @@ body
   background rgba(1,1,1,0.95)
   transition 1000ms
 
-  curtain_margin = 300px
+  curtain_margin = 383px
 
   .cover
     background url(../images/curtain.png) top left no-repeat
     background-color black
-    height 350px
+    height 383px
     width 100%
     position absolute
-    top curtain_margin
     transition 900ms 400ms easeInOutQuint
 
   .text
     @extend .unselectable
     position absolute
     background url(../images/curtain.png) top left no-repeat
-    background-position 0 -700px
-    width 382px
+    background-position 0 -766px
+    width 383px
     height 56px
     z-index 99
     top curtain_margin
@@ -344,19 +393,20 @@ body
     transition 400ms
 
   .top
-    margin-top -350px
+    margin: 0
 
   .bottom
-    background-position 0 -350px
+    margin-top: curtain_margin
+    background-position 0 -383px
 
   &.hidden
 
     visibility: visible
 
     .top
-      transform translateY(-350px)
+      transform translateY(-383px)
     .bottom
-      transform translateY(350px)
+      transform translateY(383px)
     .text
       visibility hidden
       transform scaleY(0)
@@ -457,6 +507,7 @@ body
   width 400px
   height 130px
   margin 25px
+  z-index 0
 
   .stats
     position absolute
@@ -540,6 +591,7 @@ body
   height 86px
 
   &.marine
+  &.lemurian_marine
     background-position 0 0
 
 .unit_info
@@ -552,7 +604,35 @@ body
       .total, .value
         background-position 0 -15px
 
+.active > .unit_info
+  easing = easeInOutCirc
+  timing = 300ms
+  .unit_name
+    animation unit_menu timing easing 0ms backwards
+  .roles
+    animation unit_menu timing easing 50ms backwards
+  .health
+    animation unit_menu timing easing 100ms backwards
+  .energy
+    animation unit_menu timing easing 150ms backwards
+  .avatar
+    animation pop timing easing 200ms backwards
 
+/**
+.hidden  > .unit_info
+  easing = easeInOutCirc
+  timing = 500ms
+  .unit_name
+    animation unit_menu_out timing easing 100ms forwards
+  .roles
+    animation unit_menu_out timing easing 150ms forwards
+  .health
+    animation unit_menu_out timing easing 200ms forwards
+  .energy
+    animation unit_menu_out timing easing 250ms forwards
+  .avatar
+    animation pop_out timing easing 250ms forwards
+/**/
 
 
 ///////////////////////////////////////////////////
@@ -587,3 +667,103 @@ body
   &.failure
     h2.title
       color #c00
+
+
+///////////////////////////////////////////////////
+// Disconnect Modal
+///////////////////////////////////////////////////
+#disconnected
+  z-index 99
+  background rgba(1,1,1,0.59)
+  position absolute
+  top 0
+  right 0
+  bottom 0
+  left 0
+  text-align center
+
+  h2
+    font-family "Orbitron"
+    font-size 24px
+    font-weight bold
+    display block
+    color white
+    margin-top 200px
+    background rgba(1,1,1,0.55)
+    padding 25px
+
+  .confirm.button
+    font-family "Play"
+    font-size 18px
+    font-weight bold
+    color white
+    display inline-block
+    background red
+    padding 15px
+    transition 200ms easeInOutQuint
+
+    &:hover
+      transform scale(1.2,1.2)
+
+///////////////////////////////////////////////////
+// End game
+///////////////////////////////////////////////////
+#endgame
+  background rgba(1,1,1,0.57)
+  position absolute
+  top 0
+  left 0
+  right 0
+  bottom 0
+  text-align center
+  box-shadow 0 0 800px 1em black inset
+
+  &.active
+    animation endgame_bg 400ms linear 0ms backwards
+
+    .herald
+      animation endgame_herald 1000ms easeInOutBack 400ms backwards
+
+    .title
+      animation endgame_title 1000ms easeInOutQuint 800ms backwards
+
+    .sub
+      animation endgame_title 1000ms easeInOutQuint 1000ms backwards
+
+
+
+  h2
+    font-size 30px
+    font-weight black
+    text-transform uppercase
+    font-family "Orbitron"
+    position absolute
+    width = 800px
+    width width
+    left 50%
+    margin-left width * 0.5 * -1
+    text-shadow 0 0 30px #0fe
+
+    &.title
+      top 300px
+      margin-top -30px
+      z-index 1
+      font-weight 900
+
+    &.sub
+      top 300px
+      margin-top 20px
+      z-index 1
+      font-weight 300
+
+  .herald
+    position absolute
+    width = 442px
+    height = 358px
+    width width
+    height height
+    left 50%
+    top 300px
+    margin-left width * 0.5 * -1
+    margin-top height * 0.5 * -1
+    background url(../images/herald.png) top left no-repeat

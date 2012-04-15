@@ -8,8 +8,7 @@ FrameData =
   marine: {"images": ["marine.png"],"frames": {"width": 113, "height": 97, "count": 123, "regX": 0, "regY": 0},"animations": {"onRifleShot2": [55, 57], "onRifleShot3": [58, 60], "standUp": [1, 10], "onDefendEnd": [90, 98], "all": [0, 0], "onDieStart": [99, 122], "onMoveStart": [20, 22], "onDefend": [85, 89], "onMove": [23, 34], "onDefendStart": [78, 84], "onRifleShot1": [49, 54], "onRifleShotStart": [42, 48], "onMoveEnd": [35, 41], "onRifleShot4": [61, 66], "standDown": [11, 19], "onRifleShotEnd": [67, 77]}}
 
 
-  marine_alternate: {"frames": {"regY": 0, "width": 113, "height": 97, "count": 108, "regX": 0}, "animations": {"onDefendEnd": [71, 79], "onRifleShot2": [36, 38], "onRifleShot1": [30, 35], "onMove": [4, 15], "all": [0, 0], "onMoveStart": [1, 3], "onRifleShot4": [42, 47], "onDefendStart": [59, 65], "onMoveEnd": [16, 22], "onDieStart": [80, 107], "onRifleShot3": [39, 41], "onRifleShotEnd": [48, 58], "onRifleShotStart": [23, 29], "onDefend": [66, 70]}, "images": ["marine_alternate.png"]}
-
+  marine_alternate: {"images":["marine_alternate.png"],"frames":{"width":113,"height":97,"regX":0,"count":123,"regY":0},"animations":{"onRifleShot3":[58,60],"onRifleShot2":[55,57],"onMoveStart":[20,22],"onDieStart":[99,122],"standDown":[11,19],"all":[0,0],"onRifleShot1":[49,54],"onDefendEnd":[90,98],"onDefend":[85,89],"onMoveEnd":[35,41],"onDefendStart":[78,84],"onRifleShotStart":[42,48],"onRifleShotEnd":[67,77],"standUp":[1,10],"onMove":[23,34],"onRifleShot4":[61,66]}}
 
 
 # ============================================

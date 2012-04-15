@@ -13,7 +13,7 @@ PORT = Number(process.env.PORT || 1337);
 
 MAX_PLAYERS_PER_ROOM = 1;
 
-MAX_USERS_PER_ROOM = 2;
+MAX_USERS_PER_ROOM = 3;
 
 PlayerType = {
   SPECTATOR: 'spectator',
@@ -68,7 +68,13 @@ Array.prototype.find = function(cb) {
 };
 
 Array.prototype.each = function(cb) {
-  return this.forEach(cb);
+  var child, _i, _len, _results;
+  _results = [];
+  for (_i = 0, _len = this.length; _i < _len; _i++) {
+    child = this[_i];
+    _results.push(cb(child));
+  }
+  return _results;
 };
 
 EventDispatcher = (function() {
@@ -103,7 +109,7 @@ EventDispatcher = (function() {
   EventDispatcher.prototype.trigger = function(name, data) {
     if (!this.e) return this;
     if (!this.e[name]) return this;
-    this.e[name].forEach(function(event) {
+    this.e[name].each(function(event) {
       if (event != null) return event(data);
     });
     return this;
@@ -164,7 +170,7 @@ Collection = (function(_super) {
   Collection.prototype.add = function(data) {
     var _this = this;
     if (data instanceof Array) {
-      data.forEach(function(item) {
+      data.each(function(item) {
         if (item instanceof Model) {
           return _this.collection.push(item);
         } else {
@@ -259,6 +265,7 @@ Room = (function(_super) {
 
   Room.prototype.removeUser = function(user) {
     this.users.splice(this.users.indexOf(user));
+    this.totalUsers = this.users.length;
     return this;
   };
 
@@ -279,7 +286,7 @@ Room = (function(_super) {
   Room.prototype.announce = function(eventName, data) {
     console.log("Room Event: " + eventName);
     console.log(data);
-    this.users.forEach(function(user) {
+    this.users.each(function(user) {
       return user.announce(eventName, data);
     });
     return this;
@@ -311,6 +318,24 @@ Room = (function(_super) {
     return this;
   };
 
+  Room.prototype.endGame = function() {
+    var unit, userId;
+    unit = ((function() {
+      var _i, _len, _ref, _results;
+      _ref = this.units;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        unit = _ref[_i];
+        if (unit.dead === false) _results.push(unit);
+      }
+      return _results;
+    }).call(this)).first();
+    userId = unit.get('userId');
+    return this.trigger('endGame', {
+      userId: userId
+    });
+  };
+
   Room.prototype.setEvents = function() {};
 
   Room.prototype.getNextTurn = function() {
@@ -325,7 +350,7 @@ Room = (function(_super) {
     return intervalId = every(tickSpeed, function() {
       var highestCharge;
       highestCharge = 0;
-      units.forEach(function(unit) {
+      units.each(function(unit) {
         var charge, chargeSpeed;
         if (unit.getStat('health') === 0) return;
         chargeSpeed = unit.getStat('chargeSpeed');
@@ -358,6 +383,19 @@ Room = (function(_super) {
     });
   };
 
+  Room.prototype.getLivingUnits = function() {
+    var unit, what, _i, _len, _ref;
+    _ref = this.units;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      unit = _ref[_i];
+      if (unit.dead === false) what = unit;
+    }
+    what = this.units.filter(function(unit) {
+      return unit.dead === false;
+    });
+    return what;
+  };
+
   Room.prototype.getPlayers = function() {
     return this.users.map(function(user) {
       return user.get('playerType') === PlayerType.PLAYER;
@@ -365,8 +403,19 @@ Room = (function(_super) {
   };
 
   Room.prototype.reset = function() {
+    this.units = [];
+    console.log("deleting users.. from room " + (this.get('name')) + " <" + this.id + ">");
+    this.users.each(function(user) {
+      var socket;
+      socket = user.get('socket');
+      socket.disconnect();
+      return console.log("deleted " + (user.get('name')) + " <" + user.id + ">...");
+    });
+    this.set({
+      ready: false
+    });
     this.users = [];
-    return this.units = [];
+    return this.totalUsers = this.users.length;
   };
 
   return Room;
@@ -385,7 +434,8 @@ Unit = (function(_super) {
       acted: false,
       moved: false,
       code: unitCode,
-      name: unitStats.name
+      name: unitStats.name,
+      role: unitStats.role
     });
     this.stats = new Model();
     this.stats.set(unitStats.stats);
@@ -547,6 +597,14 @@ ServerProtocol = {
       name: roomName
     });
     roomId = room.id;
+    room.bind('endGame', function(event) {
+      var message, userId;
+      userId = event.userId, message = event.message;
+      return room.announce('endGame', {
+        userId: userId,
+        message: message
+      });
+    });
     room.bind('unitTurn', function(event) {
       var message, unit, unitId, user, userId;
       unit = event.unit;
@@ -599,6 +657,7 @@ ServerProtocol = {
       user.announce('roomError', {
         message: 'Room is already full'
       });
+      socket.disconnect();
       return;
     }
     room.addUser(user);
@@ -620,10 +679,11 @@ ServerProtocol = {
     socket.on('disconnect', function() {
       console.log("" + userName + " disconnected from " + roomName);
       room.removeUser(user);
-      if (room.users.length === 0) {
-        room.set({
-          ready: false
+      if (room.getPlayers().length < MAX_PLAYERS_PER_ROOM) {
+        room.announce('endGame', {
+          message: "Player " + userName + " has left. The game has ended."
         });
+        console.log("Deleting room " + roomName + " <" + roomId + ">");
         room.reset();
         return;
       }
@@ -675,14 +735,18 @@ ServerProtocol = {
     userId = user.id;
     socket = user.get('socket');
     roomId = room.id;
+    user.announce('startGame', {
+      message: 'You are late'
+    });
     room.units.each(function(unit) {
-      user.announce('updateUnit', {
+      user.announce('addUnit', {
         userId: unit.get('userId'),
         unitId: unit.id,
         tileX: unit.get('tileX'),
         tileY: unit.get('tileY'),
         unitCode: unit.get('code'),
         unitName: unit.get('name'),
+        unitRole: unit.get('role'),
         message: "" + (user.get('name')) + "'s " + (unit.get('name')) + " has been deployed to " + (room.get('name')) + ".",
         face: unit.get('face'),
         unitStats: unit.stats.attributes,
@@ -703,18 +767,18 @@ ServerProtocol = {
       userId: players.first().id,
       roomId: roomId,
       unitCode: 'lemurian_marine',
-      tileX: 3,
-      tileY: 3
+      tileX: 0,
+      tileY: 2
     });
     unitB = ServerProtocol.addUnit({
       userId: players.last().id,
       roomId: roomId,
       unitCode: 'lemurian_marine',
-      tileX: 4,
+      tileX: 6,
       tileY: 3,
       face: 'left'
     });
-    ServerProtocol.nextUnitTurn(roomId);
+    room.getNextTurn();
   },
   addUnit: function(data) {
     var face, room, roomId, tileX, tileY, unit, unitCode, user, userId;
@@ -734,6 +798,7 @@ ServerProtocol = {
       tileY: tileY,
       unitCode: unit.get('code'),
       unitName: unit.get('name'),
+      unitRole: unit.get('role'),
       message: "" + (user.get('name')) + "'s " + (unit.get('name')) + " has been deployed to " + (room.get('name')) + ".",
       face: face,
       unitStats: unit.stats.attributes,
@@ -765,11 +830,6 @@ ServerProtocol = {
       });
     });
   },
-  nextUnitTurn: function(roomId) {
-    var room;
-    room = ServerProtocol.getRoomById(roomId);
-    return room.getNextTurn();
-  },
   assignEvents: function(userId, roomId) {
     var room, socket, user;
     room = ServerProtocol.getRoomById(roomId);
@@ -796,7 +856,7 @@ ServerProtocol = {
       unit.setStat({
         actions: unit.getStat('actions') - command.get('cost')
       });
-      points.forEach(function(point) {
+      points.each(function(point) {
         var targetUnit, targetUnitStats, totalDamageData;
         targetUnit = room.units.find(function(u) {
           return u.get('tileX') === point.tileX && u.get('tileY') === point.tileY;
@@ -852,7 +912,7 @@ ServerProtocol = {
         face: face
       });
       conflictedTiles = [];
-      tiles.forEach(function(tile) {
+      tiles.each(function(tile) {
         var occupiedUnit, tileId;
         tileId = "" + (tile.get('tileX')) + "_" + (tile.get('tileY'));
         totalActions += tile.get('cost');
@@ -881,11 +941,11 @@ ServerProtocol = {
       var deadUnit, tileX, tileY, type, unit, unitId;
       unitId = data.unitId, type = data.type;
       unit = room.getUnitById(unitId);
-      tileX = unit.get('tileX');
-      tileY = unit.get('tileY');
       if (userId !== unit.get('userId')) return;
       if (unit === void 0) return;
       if (unit !== room.get('activeUnit')) return;
+      tileX = unit.get('tileX');
+      tileY = unit.get('tileY');
       deadUnit = room.units.find(function(u) {
         return (u !== unit) && (u.get('tileX') === tileX && u.get('tileY') === tileY) && (u.dead === true);
       });
@@ -893,6 +953,10 @@ ServerProtocol = {
         room.announce('removeUnit', {
           unitId: deadUnit.id
         });
+      }
+      if (room.getLivingUnits().length <= 1) {
+        room.endGame();
+        return;
       }
       if (unit.getStat('actions') > 0) {
         room.announce('unitTurn', {
@@ -903,7 +967,7 @@ ServerProtocol = {
           message: "" + (user.get('name')) + "'s " + (unit.get('name')) + " is continuing its turn."
         });
       } else {
-        ServerProtocol.nextUnitTurn(roomId);
+        room.getNextTurn();
       }
     });
     socket.on('skipTurn', function(data) {
@@ -913,7 +977,7 @@ ServerProtocol = {
       if (unit === void 0) return;
       if (userId !== unit.get('userId')) return;
       if (unit !== room.get('activeUnit')) return;
-      return ServerProtocol.nextUnitTurn(roomId);
+      return room.getNextTurn();
     });
   }
 };

@@ -68,6 +68,9 @@ class GameUi extends Renderer
       topVignette: new Ui.TopVignette()
       curtain: new Ui.Curtain()
       commandList: new Ui.CommandList()
+      disconnected: new Ui.Disconnected()
+      unitInfo: new Ui.UnitInfo()
+      endGame: new Ui.EndGame()
     this
 
   buildElements: ->
@@ -84,7 +87,7 @@ class GameUi extends Renderer
       actionPoints: new Views.ActionPoints()
       viewport: new Container()
 
-    @elements.viewport.addChild @elements.terrain
+    #@elements.viewport.addChild @elements.terrain
     @elements.viewport.addChild @elements.hexContainer.background
     @elements.viewport.addChild @elements.hexContainer.el
     @elements.viewport.addChild @elements.hexLine.el
@@ -126,7 +129,9 @@ class Views.GameView extends GameUi
   assetsReady: =>
     # once the assets are loaded, we can now build our user-interface
     @buildElements().setConfigurations()
+    @model.bind 'disconnect', @disconnect
     @model.bind 'startGame', @startGame
+    @model.bind 'endGame', @endGame
     @model.bind 'addUser', @addUser
     @model.bind 'addUnit', @addUnit
     @model.bind 'removeUnit', @removeUnit
@@ -137,8 +142,16 @@ class Views.GameView extends GameUi
     @model.connect()
     this
 
+  # /////////////////////////////
   debug: ->
-    
+    ###
+    @stage.update()
+    # test path finding algorithm
+    @elements.hexContainer.bind 'hex', (tileId) ->
+      @elements.hexContainer.findPath (
+      console.log d
+    return
+    ###
     tempUser =
       userId: '1234567890'
       userName: 'James'
@@ -146,7 +159,6 @@ class Views.GameView extends GameUi
       playerType: 'player'
       raceName: 'lemurian'
       message: 'yo!'
-
     tempUserB =
       userId: '9229292'
       userName: 'lols'
@@ -166,8 +178,8 @@ class Views.GameView extends GameUi
       message: 'debug add unit'
       unitId: String().randomId()
       userId: user.get('userId')
-      tileX: 3
-      tileY: 3
+      tileX: 0
+      tileY: 2
       unitCode: 'lemurian_marine'
       unitName: 'Assault Marine'
       unitStats:
@@ -190,7 +202,7 @@ class Views.GameView extends GameUi
       message: 'debug add unit'
       unitId: String().randomId()
       userId: user.get('userId')
-      tileX: 4
+      tileX: 6
       tileY: 3
       unitCode: 'lemurian_marine'
       unitName: 'Assault Marine'
@@ -217,7 +229,13 @@ class Views.GameView extends GameUi
       # rrr
       mode = 'move'
       mode = 'act'
+      mode = 'turn'
       switch mode
+        when 'turn'
+          @unitTurn
+            unitId: unit.get 'unitId'
+            message: 'asdf'
+            stats: unit.unitStats
         when 'move'
           @moveUnit
             unitId: unit.get 'unitId'
@@ -243,9 +261,38 @@ class Views.GameView extends GameUi
     #after 5000, => @pause()
     this
 
+  # /////////////////////////////
+  disconnect: =>
+    @ui.disconnected.show()
+    @model.disconnect()
+    @pause()
+    this
+
   startGame: =>
     @play()
     @ui.curtain.hide()
+    @elements.hexContainer.bind 'hex', @showUnitInfoByTileId
+    this
+
+  showUnitInfoByTileId: (tileId) =>
+    unit = @elements.unitContainer.getUnitByTileId tileId
+    if unit is undefined
+      @ui.unitInfo.hide()
+      return
+    @ui.unitInfo.data unit
+    @ui.unitInfo.show()
+    #@elements.viewport.x = Wol.Settings.gameWidth * 0.5 - unit.el.x
+    return
+
+  endGame: (data) =>
+    {userId, message} = data
+    console.log 'endgame', data
+    if userId?
+      @ui.endGame.show()
+      return
+    @ui.disconnected.message message
+    @ui.disconnected.show()
+    @pause()
     this
 
   addUser: (data) =>
@@ -339,7 +386,7 @@ class Views.GameView extends GameUi
     @elements.gaugeContainer.hide()
     # create a hexagonal line
     @elements.hexLine.start tiles[0].x, tiles[0].y
-    tiles.forEach (tile) => @elements.hexLine.to tile.x, tile.y
+    tiles.each (tile) => @elements.hexLine.to tile.x, tile.y
     this
 
   # ///////////////////////////////////////////////
@@ -362,6 +409,8 @@ class Views.GameView extends GameUi
           tileY: unitActive.get 'tileY'
         , 'move'
       )()
+    tileId = @elements.hexContainer.get('activeTile').id
+    @showUnitInfoByTileId tileId
     # when the active unit finishes attacking
     unitActive.unbind('attackEnd').bind 'attackEnd', =>
       unitActive.unbind()
@@ -441,10 +490,15 @@ class Views.GameView extends GameUi
     @elements.hexContainer.setActiveTile unitTile
     # dont do anything if the unit isn't the active one
     return if @model.user.get('userId') isnt unit.get('userId')
+    # show the unit info
+    tileId = "#{unit.get 'tileX'}_#{unit.get 'tileY'}"
+    @showUnitInfoByTileId tileId
     # these are for Ui placements only
     menuX = @elements.viewport.x + unitTile.x
     menuY = @elements.viewport.y + unitTile.y - unit.height
-    @ui.unitMenu.show x: menuX, y: menuY
+    #@ui.unitMenu.show x: menuX, y: menuY
+    @ui.unitMenu.show()
+    
     # unit Menu Events
     @ui.unitMenu.unbind()
     unit.setStat
@@ -537,7 +591,7 @@ class Views.GameView extends GameUi
         return
         # end confirm.bind confirm
       # assign a click handler for the movable tiles.
-      tiles.move.forEach (tile) =>
+      tiles.move.each (tile) =>
         tile.click =>
           # cancel if already in this list
           return if tiles.selected.indexOf(tile) > -1
@@ -561,7 +615,7 @@ class Views.GameView extends GameUi
           )()
           tiles.adjacent = tile.getAdjacentPoints().map (p) -> "#{p.x}_#{p.y}" # assign the next set for cpu usage.
           @elements.hexLine.to tile.x, tile.y # draw the line
-        return # tiles.move.forEach end
+        return # tiles.move.each end
       return # end move event
 
     # /////////////////////////////////////////////////////////////////
@@ -598,7 +652,7 @@ class Views.GameView extends GameUi
         tiles.selected = []
         tiles.generated = []
         # assign click events for tiles that have units in them.
-        tiles.move.forEach (tile) =>
+        tiles.move.each (tile) =>
           # remove any existing tiles
           occupyingUnit = @elements.unitContainer.getUnitByTileId tile.id
           # skip tiles that do not have units on top of them.
@@ -664,6 +718,7 @@ class Views.GameView extends GameUi
               delete tiles.generated
         # initiate the cancel button
         @ui.cancelButton.unbind('cancel').bind 'cancel', =>
+          @elements.actionPoints.hide()
           @elements.hexContainer.removeTiles tiles.move if tiles.move?
           @ui.topVignette.hide()
           @ui.cancelButton.hide()

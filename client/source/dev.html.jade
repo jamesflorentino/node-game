@@ -2,11 +2,7 @@ extends layout
 append head
   script
     window.onload = function () {
-      var unit_info = document.querySelector('#unit-info-you');
-      var healthbar = unit_info.querySelector(".health > .background > .bar")
-      unit_info.querySelector(".avatar").className = "avatar marine";
-      document.querySelector("#curtain").className =  "hidden";
-      document.querySelector("#game-over").className = "hidden";
-      document.querySelector("#cancel-button").className = "";
-      unit_info.className = "";
+      setTimeout(function(){
+        document.getElementById("endgame").className = "active";
+      }, 500);
     }

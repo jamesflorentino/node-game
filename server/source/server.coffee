@@ -10,7 +10,7 @@
 # =========================================
 PORT = Number(process.env.PORT or 1337)
 MAX_PLAYERS_PER_ROOM = 1
-MAX_USERS_PER_ROOM = 2
+MAX_USERS_PER_ROOM = 3
 PlayerType =
   SPECTATOR: 'spectator'
   PLAYER: 'player'
@@ -45,7 +45,8 @@ Array::first = -> @[0]
 Array::at = (i) -> @[i]
 Array::shuffle = -> @sort (a,b) -> Math.round(Math.random() * 10) % 2
 Array::find = (cb) -> (@filter cb)[0]
-Array::each = (cb) -> @forEach cb
+Array::each = (cb) ->
+  cb child for child in this
 
 # =========================================
 # CLASSES
@@ -75,7 +76,7 @@ class EventDispatcher
   trigger: (name, data) ->
     return this if !@e
     return this if !@e[name]
-    @e[name].forEach (event) ->
+    @e[name].each (event) ->
       event data if event?
     this
 
@@ -113,7 +114,7 @@ class Collection extends Model
 
   add: (data) ->
     if data instanceof Array
-      data.forEach (item) =>
+      data.each (item) =>
         if item instanceof Model
           @collection.push item
         else
@@ -179,6 +180,7 @@ class Room extends Model
   # Room.removeUser
   removeUser: (user) ->
     @users.splice @users.indexOf(user)
+    @totalUsers = @users.length
     this
 
   # Room.getUserById
@@ -193,7 +195,7 @@ class Room extends Model
   announce: (eventName, data) ->
     console.log "Room Event: #{eventName}"
     console.log data
-    @users.forEach (user) ->
+    @users.each (user) ->
       user.announce eventName, data
     this
 
@@ -214,7 +216,14 @@ class Room extends Model
 
   # Room.startGame
   startGame: -> this
-
+  
+  endGame: ->
+    # for now check who stands the last.
+    unit = (unit for unit in @units when unit.dead is false).first()
+    userId = unit.get 'userId'
+    @trigger 'endGame',
+      userId: userId
+  
   # Room.setEvents
   setEvents: ->
     return
@@ -229,7 +238,7 @@ class Room extends Model
     console.log '\n', 'calculating next turn...'
     intervalId = every tickSpeed, =>
       highestCharge = 0
-      units.forEach (unit) =>
+      units.each (unit) =>
         return if unit.getStat('health') is 0
         chargeSpeed = unit.getStat 'chargeSpeed'
         charge = unit.getStat 'charge'
@@ -252,13 +261,28 @@ class Room extends Model
         console.log "unit selected", activeUnit
       return
 
+  getLivingUnits: ->
+    what = unit for unit in @units when unit.dead is false
+    what = @units.filter (unit) -> unit.dead is false
+    what
+
+
+
+
   getPlayers: ->
     @users.map (user) ->
       user.get('playerType') is PlayerType.PLAYER
 
   reset: ->
-    @users = []
     @units = []
+    console.log "deleting users.. from room #{@get 'name'} <#{@id}>"
+    @users.each (user) ->
+      socket = user.get 'socket'
+      socket.disconnect()
+      console.log "deleted #{user.get('name')} <#{user.id}>..."
+    @set ready: false
+    @users = []
+    @totalUsers = @users.length
 
 # ===========================
 # Units
@@ -273,6 +297,7 @@ class Unit extends Model
       moved: false
       code: unitCode
       name: unitStats.name
+      role: unitStats.role
     @stats = new Model()
     @stats.set unitStats.stats
     unitCommands = Wol.UnitCommands[unitCode]
@@ -386,12 +411,22 @@ ServerData =
   rooms: []
   users: []
 
+
+#//////////////////////////////
 ServerProtocol =
 
   createRoom: (roomName) ->
     room = new Room name: roomName
     roomId = room.id
 
+    #//////////////////////////////
+    room.bind 'endGame', (event) ->
+      {userId, message} = event
+      room.announce 'endGame',
+        userId: userId
+        message: message
+
+    #//////////////////////////////
     room.bind 'unitTurn', (event) ->
       unit = event.unit
       unit.set moved: false, acted: false
@@ -429,6 +464,7 @@ ServerProtocol =
     # if room.totalUsers > MAX_USERS_PER_ROOM
     if room.totalUsers >= MAX_USERS_PER_ROOM
       user.announce 'roomError', message: 'Room is already full'
+      socket.disconnect()
       return
   
     # add the user to the room
@@ -452,8 +488,12 @@ ServerProtocol =
     socket.on 'disconnect', ->
       console.log "#{userName} disconnected from #{roomName}"
       room.removeUser user
-      if room.users.length is 0
-        room.set ready: false
+      # disconnect all clients then delete the room
+      # if there's no more players in it.
+      if room.getPlayers().length < MAX_PLAYERS_PER_ROOM
+        room.announce 'endGame',
+          message: "Player #{userName} has left. The game has ended."
+        console.log "Deleting room #{roomName} <#{roomId}>"
         room.reset()
         return
       room.announce 'removeUser',
@@ -461,6 +501,7 @@ ServerProtocol =
         userId: userId
         userName: userName
         message: "#{playerType} #{userName} has left the game."
+      # end
 
     # tell the user that he is subscribed to the room's update
     user.announce 'joinRoom',
@@ -501,14 +542,17 @@ ServerProtocol =
     userId = user.id
     socket = user.get 'socket'
     roomId = room.id
+    user.announce 'startGame',
+      message: 'You are late'
     room.units.each (unit) ->
-      user.announce 'updateUnit',
+      user.announce 'addUnit',
         userId: unit.get 'userId'
         unitId: unit.id
         tileX: unit.get 'tileX'
         tileY: unit.get 'tileY'
         unitCode: unit.get 'code'
         unitName: unit.get 'name'
+        unitRole: unit.get 'role'
         message: "#{user.get 'name'}'s #{unit.get 'name'} has been deployed to #{room.get 'name'}."
         face: unit.get 'face'
         unitStats: unit.stats.attributes
@@ -527,18 +571,18 @@ ServerProtocol =
       userId: players.first().id
       roomId: roomId
       unitCode: 'lemurian_marine'
-      tileX: 3
-      tileY: 3
+      tileX: 0
+      tileY: 2
 
     unitB = ServerProtocol.addUnit
       userId: players.last().id
       roomId: roomId
       unitCode: 'lemurian_marine'
-      tileX: 4
+      tileX: 6
       tileY: 3
       face: 'left'
 
-    ServerProtocol.nextUnitTurn(roomId)
+    room.getNextTurn()
 
     return
 
@@ -555,6 +599,7 @@ ServerProtocol =
       tileY: tileY
       unitCode: unit.get 'code'
       unitName: unit.get 'name'
+      unitRole: unit.get 'role'
       message: "#{user.get 'name'}'s #{unit.get 'name'} has been deployed to #{room.get 'name'}."
       face: face
       unitStats: unit.stats.attributes
@@ -584,17 +629,23 @@ ServerProtocol =
         points: points
         message: "#{user.get 'name'}'s #{unit.get 'name'} is moving to hex(#{tileX}, #{tileY})"
 
-
-  nextUnitTurn: (roomId) ->
-    room = ServerProtocol.getRoomById roomId
-    room.getNextTurn()
-
+  # Player Commands
+  # //////////////////////////////////////////////////////////
+  # These are the list of events that a playing user can emit.
+  # - actUnit
+  # - moveUnit
+  # - skipTurn
+  # - moveUnitEnd
+  # //////////////////////////////////////////////////////////
   assignEvents: (userId, roomId) ->
     room = ServerProtocol.getRoomById roomId
     user = room.getUserById userId
     socket = user.get 'socket'
-    # ///////////////////////////////////
-    # events
+    # actUnit
+    # ----------------------------------------------------------
+    #   unitId - the unit's id
+    #   points - the tiles that are affected by the command
+    #   commandCode - a static name for a certain command.
     socket.on 'actUnit', (data) ->
       {unitId, points, commandCode} = data
       return if !unitId
@@ -618,7 +669,7 @@ ServerProtocol =
       # deduct AP
       unit.setStat actions: unit.getStat('actions') - command.get('cost')
       # populate the target list
-      points.forEach (point) ->
+      points.each (point) ->
         targetUnit = room.units.find (u) ->
           u.get('tileX') is point.tileX and u.get('tileY') is point.tileY
         return if !targetUnit
@@ -666,7 +717,7 @@ ServerProtocol =
       totalActions = 0
       unit.set face: face
       conflictedTiles = []
-      tiles.forEach (tile) ->
+      tiles.each (tile) ->
         tileId = "#{tile.get('tileX')}_#{tile.get('tileY')}"
         totalActions += tile.get 'cost'
         occupiedUnit = room.getUnitByTileId tileId
@@ -698,8 +749,6 @@ ServerProtocol =
     socket.on 'moveUnitEnd', (data) ->
       {unitId, type} = data
       unit = room.getUnitById unitId
-      tileX = unit.get 'tileX'
-      tileY = unit.get 'tileY'
       # if the sender isn't the unit owner.
       return if userId isnt unit.get('userId')
       # if invalid unitId
@@ -707,12 +756,18 @@ ServerProtocol =
       # if unit isn't the active unit
       return if unit isnt room.get('activeUnit')
       # check if there's an existing unit on top of it
+      tileX = unit.get 'tileX'
+      tileY = unit.get 'tileY'
       deadUnit = room.units.find (u) ->
         (u isnt unit) and (u.get('tileX') is tileX and u.get('tileY') is tileY) and (u.dead is true)
       # reomve the unit from the client
       if deadUnit?
         room.announce 'removeUnit',
           unitId: deadUnit.id
+      # check if there's no more opponent left.
+      if room.getLivingUnits().length <= 1
+        room.endGame()
+        return
       # let the unit proceed with the game
       if unit.getStat('actions') > 0
         room.announce 'unitTurn',
@@ -721,7 +776,7 @@ ServerProtocol =
             actions: unit.getStat 'actions'
           message: "#{user.get('name')}'s #{unit.get('name')} is continuing its turn."
       else
-        ServerProtocol.nextUnitTurn roomId
+        room.getNextTurn()
       return
 
     socket.on 'skipTurn', (data) ->
@@ -730,9 +785,7 @@ ServerProtocol =
       return if unit is undefined
       return if userId isnt unit.get('userId')
       return if unit isnt room.get('activeUnit')
-      # temporary for now
-      ServerProtocol.nextUnitTurn roomId
-
+      room.getNextTurn()
 
     return
 
