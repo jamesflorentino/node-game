@@ -15,6 +15,8 @@ Array::at = (i) -> @[i]
 Array::first = -> @at 0
 Array::last = -> @[@length-1]
 Array::find = (cb) -> @filter(cb)[0]
+Array::select = (cb) ->
+  item for item in this when cb(item) is true
 Array::each = (cb) ->
   cb item for item in this
 

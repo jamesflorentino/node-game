@@ -8,10 +8,12 @@ class Modal extends Wol.Views.View
         @el.css top: position.y, left: position.x
     @el.removeClass 'hidden'
     @el.addClass 'active'
+    this
 
   hide: ->
     @el.addClass 'hidden'
     @el.removeClass 'active'
+    this
 
 
 class Ui.Console extends Modal
@@ -126,7 +128,6 @@ class Ui.UnitInfo extends Modal
     energy = unit.getStat 'energy'
     baseHealth = unit.getStat 'baseHealth'
     baseEnergy = unit.getStat 'baseEnergy'
-    console.log 'unitRole', unit.get 'unitRole'
     @avatar.addClass unit.get 'unitCode'
     @unitName.text unit.get 'unitName'
     @roles.text unit.get 'unitRole'

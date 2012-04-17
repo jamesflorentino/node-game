@@ -15,6 +15,12 @@ class Wol.Views.HexContainer extends Wol.Views.View
         generated: undefined
         adjacent: undefined
     return
+  
+  removeSelectionTiles: ->
+    tiles = @get 'selection'
+    @removeTiles tiles.move if tiles.move?
+    @removeTiles tiles.selected if tiles.selected?
+    @removeTiles tiles.generated if tiles.generated?
 
   # generate a cached version of the tiles.
   # These does not udpate very much often
@@ -78,7 +84,17 @@ class Wol.Views.HexContainer extends Wol.Views.View
       y: tile.tileY
 
   setActiveTile: (tile) ->
+    @removeActiveTile()
     @set activeTile: tile
 
   removeActiveTile: ->
     @removeTile @get('activeTile')
+
+  toPoint: (tileId) ->
+    r = tileId.split('_')
+    x: Number(r[0]), y: Number(r[1])
+
+  isValid: (p) ->
+    (p.x > -1 and p.y > -1) and
+    (p.y < Wol.Settings.columns and p.y < Wol.Settings.rows)
+

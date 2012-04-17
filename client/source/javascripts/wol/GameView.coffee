@@ -142,16 +142,34 @@ class Views.GameView extends GameUi
     @model.connect()
     this
 
+  debugPathFinding: ->
+    {getAdjacentHexes, getHeuristics} = HexUtil
+    start = x: 2, y: 2
+    @elements.hexContainer.addTile start
+    @elements.hexContainer.bind 'hex', (tileId) =>
+      destination = @elements.hexContainer.toPoint tileId
+      openList = [start]
+      complete = false
+      while complete is false
+        lowestCost = 100 # initial arbitrary value
+        # consider the best node in the open list (the node with the lowest f value)
+        current = openList.last()
+        adjacent = getAdjacentHexes current.x, current.y
+        adjacent.sort (a, b) ->
+          getHeuristics(a, destination) > getHeuristics(b, destination)
+        point = adjacent.first()
+        openList.push point
+        # this node is the goal, then we are done
+        if point.x is destination.x and point.y is destination.y
+          complete = true
+          break
+      @elements.hexContainer.addTilesByPoints openList, 'target'
+      @stage.update()
+    @stage.update()
+ 
+
   # /////////////////////////////
   debug: ->
-    ###
-    @stage.update()
-    # test path finding algorithm
-    @elements.hexContainer.bind 'hex', (tileId) ->
-      @elements.hexContainer.findPath (
-      console.log d
-    return
-    ###
     tempUser =
       userId: '1234567890'
       userName: 'James'
@@ -192,7 +210,7 @@ class Views.GameView extends GameUi
         armor: 10
         shield: 5
         energy: 9
-        actions: 4
+        actions: 6
         moveRadius: 3
         charge: 0
         chargeSpeed: 10
@@ -202,8 +220,8 @@ class Views.GameView extends GameUi
       message: 'debug add unit'
       unitId: String().randomId()
       userId: user.get('userId')
-      tileX: 6
-      tileY: 3
+      tileX: 0
+      tileY: 1
       unitCode: 'lemurian_marine'
       unitName: 'Assault Marine'
       face: 'left'
@@ -212,7 +230,7 @@ class Views.GameView extends GameUi
         baseEnergy: 10
         baseShield: 5
         baseArmor: 0
-        baseActions: 4
+        baseActions: 6
         health: 80
         armor: 3
         shield: 3
@@ -235,7 +253,7 @@ class Views.GameView extends GameUi
           @unitTurn
             unitId: unit.get 'unitId'
             message: 'asdf'
-            stats: unit.unitStats
+            stats: unit.get 'unitStats'
         when 'move'
           @moveUnit
             unitId: unit.get 'unitId'
@@ -287,12 +305,13 @@ class Views.GameView extends GameUi
   endGame: (data) =>
     {userId, message} = data
     console.log 'endgame', data
+    @model.unbind 'disconnect'
     if userId?
       @ui.endGame.show()
+      after 1000, => @pause()
       return
     @ui.disconnected.message message
     @ui.disconnected.show()
-    @pause()
     this
 
   addUser: (data) =>
@@ -482,141 +501,39 @@ class Views.GameView extends GameUi
   # GameUi.unitTurn
   unitTurn: (data) =>
     {unitId, message, stats} = data
-    @ui.console.log message
-    unit = @elements.unitContainer.getUnitById unitId
+    {hexContainer, unitContainer, hexLine} = @elements
+    unit = unitContainer.getUnitById unitId
     # add a hexagonal tile to the current tile the unit is positioned to
-    @elements.hexContainer.removeActiveTile()
-    unitTile = @elements.hexContainer.addTile (tileX: unit.get('tileX'), tileY: unit.get('tileY')), 'move'
-    @elements.hexContainer.setActiveTile unitTile
+    return if unit is undefined
+    @model.set activeUnit: unit
+    unitTile = hexContainer.addTile
+      tileX: unit.get('tileX')
+      tileY: unit.get('tileY')
+      , 'move'
+    hexContainer.setActiveTile unitTile
     # dont do anything if the unit isn't the active one
     return if @model.user.get('userId') isnt unit.get('userId')
-    # show the unit info
     tileId = "#{unit.get 'tileX'}_#{unit.get 'tileY'}"
     @showUnitInfoByTileId tileId
-    # these are for Ui placements only
     menuX = @elements.viewport.x + unitTile.x
     menuY = @elements.viewport.y + unitTile.y - unit.height
-    #@ui.unitMenu.show x: menuX, y: menuY
     @ui.unitMenu.show()
-    
-    # unit Menu Events
     @ui.unitMenu.unbind()
-    unit.setStat
-      actions: stats.actions
-    # -----------------------------------------------------------------
-    # ACTION: SKIP UNIT TURN
-    # -----------------------------------------------------------------
-    @ui.unitMenu.bind 'skip', =>
-      @model.send 'skipTurn', unitId: unitId
-      @elements.hexContainer.removeTile unitTile
-      @ui.unitMenu.hide()
-      @ui.unitMenu.unbind()
-      return
+    unit.setStat actions: stats.actions
+    @ui.unitMenu.unbind('skip').bind 'skip', @onSkip
 
-    # -----------------------------------------------------------------
-    # ACTION: MOVE UNIT
-    # -----------------------------------------------------------------
-    @ui.unitMenu.bind 'move', =>
-      $("#game").addClass "move"
-      unit.get('tiles') or unit.set tiles: {}
-      moveRadius = unit.getStat 'moveRadius'
-      @elements.hexLine.start unitTile.x, unitTile.y
-      tiles = @elements.hexContainer.get 'selection'
-      tiles.move = @elements.hexContainer.addTilesByPoints(
-        unitTile.getAdjacentPoints(radius: moveRadius)
-      )
-      tiles.selected = []
-      tiles.generated = [] # a tile graphic that is generated from a selected tile
-      tiles.adjacent = unitTile.getAdjacentPoints().map (p) -> "#{p.x}_#{p.y}" # assign the next set for cpu usage.
-      actionPoints = unit.getStat 'actions'
-      @elements.actionPoints.setValues actionPoints, unit.getStat 'baseActions'
-      @elements.actionPoints.position unit.el.x, unit.el.y - unit.height + 10
-      # display states
-      @ui.cancelButton.show()
-      @ui.topVignette.show()
-      @ui.unitMenu.hide()
-      @ui.console.hide()
-      # cancel button events
-      @ui.cancelButton.unbind()
-      @ui.cancelButton.bind 'cancel', =>
-        $("#game").removeClass "move"
-        @ui.cancelButton.hide()
-        @ui.topVignette.hide()
-        @ui.confirm.hide()
-        @ui.unitMenu.show()
-        @ui.console.show()
-        @ui.cancelButton.unbind()
-        @elements.hexLine.clear()
-        @elements.hexContainer.removeTiles tiles.move if tiles.move?
-        @elements.hexContainer.removeTiles tiles.generated if tiles.generated?
-        @elements.actionPoints.hide()
-        return
-      # confirm events
-      @ui.confirm.unbind()
-      @ui.confirm.bind 'cancel', =>
-        @elements.hexLine.clear()
-        @elements.hexContainer.removeTiles tiles.generated if tiles.generated?
-        @ui.confirm.hide()
-        # reset the Action Points
-        actionPoints = unit.getStat 'actions'
-        @elements.actionPoints.setValues actionPoints, unit.getStat 'baseActions'
-        # reset the tiles
-        tiles.selected = []
-        tiles.generated = []
-        tiles.adjacent = unitTile.getAdjacentPoints().map (p) -> "#{p.x}_#{p.y}" # assign the next set for cpu usage.
-        @elements.hexLine.start unitTile.x, unitTile.y
-      # when the user confirms the tile movement selection
-      @ui.confirm.bind 'confirm', =>
-        $("#game").removeClass "move"
-        @ui.cancelButton.hide()
-        @ui.topVignette.hide()
-        @ui.confirm.hide()
-        @ui.unitMenu.hide()
-        @ui.console.show()
-        @elements.hexLine.clear()
-        @elements.hexContainer.removeTiles tiles.move if tiles.move?
-        @elements.hexContainer.removeTiles tiles.selected if tiles.selected?
-        @elements.hexContainer.removeTiles tiles.generated if tiles.generated?
-        @elements.hexContainer.removeTile unitTile
-        @elements.actionPoints.hide()
-        @ui.confirm.unbind()
-        @ui.cancelButton.unbind()
-        @ui.unitMenu.unbind 'move'
-        # when confirm is pressed/clicked, translate all the generated tiles
-        # to an array of objects with tileX and tileY as their properties.
-        @model.send 'moveUnit',
-          unitId: unitId
-          points: tiles.generated.map (tile) -> tileX: tile.tileX, tileY: tile.tileY
-          face: (if unit.el.scaleX is 1 then 'right' else 'right')
-        return
-        # end confirm.bind confirm
-      # assign a click handler for the movable tiles.
-      tiles.move.each (tile) =>
-        tile.click =>
-          # cancel if already in this list
-          return if tiles.selected.indexOf(tile) > -1
-          # cancel if not an adjacent tile
-          return if tiles.adjacent.indexOf(tile.id) is -1
-          # cancel if insufficient actionpoints
-          return if actionPoints - tile.cost < 0
-          # cancel if there's an occupant in the tile
-          return if @isOccupiedTileById(tile.id)
-          actionPoints -= tile.cost
-          @elements.actionPoints.deduct 1
-          tiles.selected.push tile
-          tiles.generated.push ( =>
-            t = @elements.hexContainer.addTile {tileX: tile.tileX, tileY: tile.tileY}, 'move'
-            t.click =>
-              return if tiles.generated.last() isnt t
-              @ui.confirm.show
-                x: @elements.viewport.x + tile.x
-                y: @elements.viewport.y + tile.y
-            t
-          )()
-          tiles.adjacent = tile.getAdjacentPoints().map (p) -> "#{p.x}_#{p.y}" # assign the next set for cpu usage.
-          @elements.hexLine.to tile.x, tile.y # draw the line
-        return # tiles.move.each end
-      return # end move event
+    # ////////////////////////////////////////////////////////////////
+    # skip turn
+    # ---------------------------------------------------------------
+    @ui.unitMenu.bind 'skip', @turnSkip
+      
+
+    # ////////////////////////////////////////////////////////////////
+    # move unit
+    # ---------------------------------------------------------------
+    @ui.unitMenu.unbind('move').bind 'move', @turnMove
+      
+
 
     # /////////////////////////////////////////////////////////////////
     # unitTurn -> act
@@ -724,3 +641,112 @@ class Views.GameView extends GameUi
           @ui.cancelButton.hide()
           @ui.commandList.hide()
           @ui.unitMenu.show()
+
+  turnSkip: =>
+    unit = @model.get 'activeUnit'
+    unitId = unit.get 'unitId'
+    @elements.hexContainer.removeActiveTile()
+    @ui.unitMenu.hide()
+    @ui.unitMenu.unbind()
+    @model.send 'skipTurn', unitId: unitId
+
+  turnMove: =>
+    unit = @model.get 'activeUnit'
+    unitTile = @elements.hexContainer.get 'activeTile'
+    tileId = unitTile.id
+    unitId = unit.get 'unitId'
+    @ui.unitMenu.hide()
+    @elements.actionPoints.setValues unit.getStat('actions'), unit.getStat('baseActions')
+    @elements.actionPoints.position unit.el.x, unit.el.y - unit.height
+    tiles = @elements.hexContainer.get 'selection'
+    moveRadius = unit.getStat 'moveRadius'
+    # generate the moveable tiles
+    adjacentTiles = HexUtil.getAdjacentHexes unitTile.tileX, unitTile.tileY, moveRadius
+    tiles.move = @elements.hexContainer.addTilesByPoints adjacentTiles
+    # assign the starting point for pathfinding
+    startPoint = @elements.hexContainer.toPoint tileId
+    # assign click handlers
+    tiles.move.each (tile) =>
+      tile.click =>
+        @elements.actionPoints.setValues unit.getStat('actions'), unit.getStat('baseActions')
+        @elements.hexContainer.removeTiles tiles.selected if tiles.selected?
+        destination = @elements.hexContainer.toPoint tile.id
+        return if @isOccupiedTileById "#{destination.x}_#{destination.y}"
+        openList = [startPoint]
+        actions = unit.getStat 'actions'
+        # add one just for the first tile in the open list
+        actions += 1
+        # path-finding algorithm start
+        complete = false
+        while complete is false
+          current = openList.last()
+          adjacent = HexUtil.getAdjacentHexes current.x, current.y
+          adjacent = HexUtil.setBounds adjacent, Settings.columns, Settings.rows
+          adjacent.sort (a,b) ->
+            HexUtil.getHeuristics(a, destination) > HexUtil.getHeuristics(b, destination)
+          # check if the target is occupied, until it gets to the next available tile.
+          nextPoint = undefined
+          i = 0
+          while i < adjacent.length
+            point = adjacent[i]
+            if @isOccupiedTileById("#{point.x}_#{point.y}") is false
+              nextPoint = point
+              actions -= 1
+              @elements.actionPoints.deduct 1
+              break
+            i++
+          # check for action points left
+          # if there's no passable tile, then let's just cancel
+          break if actions <= 0 or nextPoint is undefined
+          openList.push nextPoint
+          # if this node is the goal, break the loop and then we're done
+          break if nextPoint.x is destination.x and point.y is destination.y
+        # remove the first element
+        tiles.selected = @elements.hexContainer.addTilesByPoints openList, 'move'
+        tiles.selected.last().click =>
+          tiles.selected.last().removeClick()
+          @ui.confirm.unbind('confirm').bind 'confirm', =>
+            @hideHUD()
+            @unbindHUDEvents()
+            points = @elements.hexContainer.convertToPoints tiles.selected
+            points.splice 0,1
+            @model.send 'moveUnit',
+              unitId: unitId
+              points: points
+              face: (if unit.el.scaleX > 0 then 'right' else 'left')
+            @elements.hexContainer.removeSelectionTiles()
+            @elements.hexContainer.removeTile unitTile
+          @ui.confirm.unbind('cancel').bind 'cancel', =>
+            unit.move unitTile
+            @ui.confirm.hide()
+            @elements.hexContainer.removeTiles tiles.selected
+            @elements.actionPoints.setValues unit.getStat('actions'), unit.getStat('baseActions')
+          @ui.confirm.show
+            x: @elements.viewport.x + tiles.selected.last().x
+            y: @elements.viewport.y + tiles.selected.last().y - unit.height
+          @elements.gaugeContainer.hide()
+          @elements.actionPoints.hide()
+
+    @ui.cancelButton.show()
+    @ui.cancelButton.unbind().bind 'cancel', =>
+      @elements.actionPoints.hide()
+      @elements.hexContainer.removeSelectionTiles()
+      @ui.cancelButton.hide().unbind()
+      @ui.unitMenu.show()
+
+  #///////////////////////////////////////////
+  hideHUD: ->
+    @ui.cancelButton.hide()
+    @ui.topVignette.hide()
+    @ui.confirm.hide()
+    @ui.unitMenu.hide()
+    @ui.console.show()
+    @elements.actionPoints.hide()
+    this
+
+  #///////////////////////////////////////////
+  unbindHUDEvents: ->
+    @ui.confirm.unbind()
+    @ui.cancelButton.unbind()
+    @ui.unitMenu.unbind()
+    this

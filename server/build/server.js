@@ -576,7 +576,7 @@ HexGrid = (function(_super) {
     if (!points.length) return;
     return points.map(function(point) {
       return _this.find(function(t) {
-        return t.get('tileX') === point.tileX && t.get('tileY') === point.tileY;
+        return t.get('tileX') === (point.tileX || point.x) && t.get('tileY') === (point.tileY || point.y);
       });
     });
   };
@@ -912,6 +912,7 @@ ServerProtocol = {
         face: face
       });
       conflictedTiles = [];
+      console.log(tiles, 'tiles');
       tiles.each(function(tile) {
         var occupiedUnit, tileId;
         tileId = "" + (tile.get('tileX')) + "_" + (tile.get('tileY'));

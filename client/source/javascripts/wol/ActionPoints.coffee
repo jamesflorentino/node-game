@@ -29,7 +29,6 @@ class Wol.Views.ActionPoints extends View
     this
 
   setValues: (value, total) ->
-    console.log 'setValues', value, total
     @bars.removeAllChildren()
     @background.removeAllChildren()
     # --
@@ -53,7 +52,6 @@ class Wol.Views.ActionPoints extends View
   deduct: (cost) ->
     children = @bars.getNumChildren()
     index = children - cost
-    console.log 'deduct start', index, children
     tilesRemoved = []
     while index < children
       image = @bars.getChildAt index

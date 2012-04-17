@@ -401,7 +401,7 @@ class HexGrid extends Collection
     return if !points
     return if !points.length
     points.map (point) =>
-      @find (t) -> t.get('tileX') is point.tileX and t.get('tileY') is point.tileY
+      @find (t) -> t.get('tileX') is (point.tileX or point.x) and t.get('tileY') is (point.tileY or point.y)
 
 # =========================================
 # Server Api
@@ -717,6 +717,7 @@ ServerProtocol =
       totalActions = 0
       unit.set face: face
       conflictedTiles = []
+      console.log tiles, 'tiles'
       tiles.each (tile) ->
         tileId = "#{tile.get('tileX')}_#{tile.get('tileY')}"
         totalActions += tile.get 'cost'

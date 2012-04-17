@@ -23,6 +23,9 @@ class Wol.Views.UnitContainer extends Wol.Views.View
     units = (unit for unit in @units when "#{unit.get('tileX')}_#{unit.get('tileY')}" is tileId)
     units[0]
 
+  getUnitByPoint: (point) ->
+    units = (unit for unit in @units when unit.get('tileX') is point.x and unit.get('tileY') is point.y)
+    units[0]
 
 
 

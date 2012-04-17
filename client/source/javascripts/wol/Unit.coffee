@@ -95,15 +95,22 @@ class Wol.Views.Unit extends Wol.Views.View
   stand: -> @onStand()
 
   move: (tiles) ->
-    tiles = [].concat tiles
-    # to ensure that if a unit has no tileX and tileY properties,
-    # it will immediately state them during the start of this function.
-    if @get('tileX') is undefined and @get('tileY') is undefined
-      @setTilePosition tiles[0].tileX, tiles[0].tileY
-      @el.x = tiles[0].x
-      @el.y = tiles[0].y
-      tiles.splice 0, 1
-    @moveThroughTiles tiles
+
+    if tiles instanceof Array
+      tiles = [].concat tiles
+      # to ensure that if a unit has no tileX and tileY properties,
+      # it will immediately state them during the start of this function.
+      if @get('tileX') is undefined and @get('tileY') is undefined
+        @setTilePosition tiles[0].tileX, tiles[0].tileY
+        @el.x = tiles[0].x
+        @el.y = tiles[0].y
+        tiles.splice 0, 1
+      @moveThroughTiles tiles
+    else
+      tile = tiles
+      @setTilePosition tile.tileX, tile.tileY
+      @el.x = tile.x
+      @el.y = tile.y
     this
 
   act: (data) -> @onAct data
