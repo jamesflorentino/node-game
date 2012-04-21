@@ -5,7 +5,7 @@
 # E-mail  : j@jamesflorentino.com
 # Github  : @jamesflorentino
 */
-var Collection, EventDispatcher, Hex, HexGrid, MAX_PLAYERS_PER_ROOM, MAX_USERS_PER_ROOM, Model, PORT, PlayerType, Room, ServerData, ServerProtocol, Unit, User, Wol, after, every, io, onConnect, randomId, testRoom,
+var Collection, EventDispatcher, Hex, HexGrid, MAX_PLAYERS_PER_ROOM, MAX_USERS_PER_ROOM, Model, PORT, PlayerType, Room, ServerData, ServerProtocol, Unit, User, Wol, after, every, io, randomId, testRoom,
   __hasProp = Object.prototype.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
 
@@ -19,6 +19,52 @@ PlayerType = {
   SPECTATOR: 'spectator',
   PLAYER: 'player',
   ARBITER: 'arbiter'
+};
+
+Array.prototype.last = function() {
+  return this[this.length - 1];
+};
+
+Array.prototype.first = function() {
+  return this[0];
+};
+
+Array.prototype.at = function(i) {
+  return this[i];
+};
+
+Array.prototype.shuffle = function() {
+  return this.sort(function(a, b) {
+    return Math.round(Math.random() * 10) % 2;
+  });
+};
+
+Array.prototype.select = function(cb) {
+  var i, item, _len, _results;
+  _results = [];
+  for (i = 0, _len = this.length; i < _len; i++) {
+    item = this[i];
+    if (cb(item)) _results.push(item);
+  }
+  return _results;
+};
+
+Array.prototype.detect = function(cb) {
+  return this.select(cb)[0];
+};
+
+Array.prototype.find = function(cb) {
+  return (this.select(cb))[0];
+};
+
+Array.prototype.each = function(cb) {
+  var child, i, _len, _results;
+  _results = [];
+  for (i = 0, _len = this.length; i < _len; i++) {
+    child = this[i];
+    _results.push(cb(child));
+  }
+  return _results;
 };
 
 io = require('socket.io').listen(PORT);
@@ -43,38 +89,6 @@ after = function(ms, cb) {
 
 every = function(ms, cb) {
   return setInterval(cb, ms);
-};
-
-Array.prototype.last = function() {
-  return this[this.length - 1];
-};
-
-Array.prototype.first = function() {
-  return this[0];
-};
-
-Array.prototype.at = function(i) {
-  return this[i];
-};
-
-Array.prototype.shuffle = function() {
-  return this.sort(function(a, b) {
-    return Math.round(Math.random() * 10) % 2;
-  });
-};
-
-Array.prototype.find = function(cb) {
-  return (this.filter(cb))[0];
-};
-
-Array.prototype.each = function(cb) {
-  var child, _i, _len, _results;
-  _results = [];
-  for (_i = 0, _len = this.length; _i < _len; _i++) {
-    child = this[_i];
-    _results.push(cb(child));
-  }
-  return _results;
 };
 
 EventDispatcher = (function() {
@@ -161,8 +175,6 @@ Collection = (function(_super) {
     Collection.__super__.constructor.apply(this, arguments);
   }
 
-  Collection.prototype.collection = [];
-
   Collection.prototype.initialize = function() {
     return this.collection = [];
   };
@@ -184,7 +196,7 @@ Collection = (function(_super) {
 
   Collection.prototype.removeById = function(id) {
     var model;
-    model = this.collection.filter(function(item) {
+    model = this.collection.select(function(item) {
       return item.id === id;
     });
     return this.collection.splice(this.collection.indexOf(model), 1);
@@ -195,7 +207,7 @@ Collection = (function(_super) {
   };
 
   Collection.prototype.find = function(cb) {
-    return (this.collection.filter(cb))[0];
+    return this.collection.find(cb);
   };
 
   Collection.prototype.getAttributes = function() {
@@ -241,6 +253,8 @@ Room = (function(_super) {
 
   Room.prototype.units = [];
 
+  Room.prototype.logs = [];
+
   Room.prototype.ready = false;
 
   Room.prototype.totalUsers = 0;
@@ -250,6 +264,7 @@ Room = (function(_super) {
   Room.prototype.initialize = function() {
     this.users = [];
     this.units = [];
+    this.logs = [];
     this.ready = false;
     this.totalUsers = 0;
     this.grid = new HexGrid();
@@ -271,7 +286,7 @@ Room = (function(_super) {
 
   Room.prototype.getUserById = function(userId) {
     var user;
-    user = this.users.filter(function(user) {
+    user = this.users.select(function(user) {
       return user.id === userId;
     });
     return user[0];
@@ -283,9 +298,24 @@ Room = (function(_super) {
     });
   };
 
+  Room.prototype.getUnitByCoord = function(x, y) {
+    var unit, _i, _len, _ref, _results;
+    _ref = this.units;
+    _results = [];
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      unit = _ref[_i];
+      if (unit.get('tileX') === x && unit.get('tileY') === y) _results.push(unit);
+    }
+    return _results;
+  };
+
   Room.prototype.announce = function(eventName, data) {
     console.log("Room Event: " + eventName);
-    console.log(data);
+    console.log(JSON.stringify(data));
+    this.logs.push({
+      eventName: eventName,
+      data: data
+    });
     this.users.each(function(user) {
       return user.announce(eventName, data);
     });
@@ -308,7 +338,7 @@ Room = (function(_super) {
 
   Room.prototype.getUnitById = function(unitId) {
     var unit;
-    unit = this.units.filter(function(unit) {
+    unit = this.units.select(function(unit) {
       return unit.id === unitId;
     });
     return unit[0];
@@ -378,7 +408,7 @@ Room = (function(_super) {
         _this.trigger('unitTurn', {
           unit: activeUnit
         });
-        console.log("unit selected", activeUnit);
+        console.log("unit selected", JSON.stringify(activeUnit));
       }
     });
   };
@@ -390,7 +420,7 @@ Room = (function(_super) {
       unit = _ref[_i];
       if (unit.dead === false) what = unit;
     }
-    what = this.units.filter(function(unit) {
+    what = this.units.select(function(unit) {
       return unit.dead === false;
     });
     return what;
@@ -452,17 +482,25 @@ Unit = (function(_super) {
       shield: this.getStat('shield'),
       armor: this.getStat('armor')
     };
-    stats.health -= damageData.health;
-    stats.shield -= damageData.shield;
-    stats.armor -= damageData.armor;
-    stats.health = Math.max(0, stats.health);
-    stats.shield = Math.max(0, stats.shield);
-    stats.armor = Math.max(0, stats.armor);
-    this.stats.set({
-      health: stats.health,
-      shield: stats.shield,
-      armor: stats.armor
-    });
+    if (stats.shield > 0) {
+      stats.shield -= damageData.shield;
+      stats.shield = Math.max(0, stats.shield);
+      this.stats.set({
+        shield: stats.shield
+      });
+    } else if (stats.armor > 0) {
+      stats.armor -= damageData.armor;
+      stats.armor = Math.max(0, stats.armor);
+      this.stats.set({
+        armor: stats.armor
+      });
+    } else {
+      stats.health -= damageData.health;
+      stats.health = Math.max(0, stats.health);
+      this.stats.set({
+        health: stats.health
+      });
+    }
     return {
       health: this.getStat('health'),
       shield: this.getStat('shield'),
@@ -473,10 +511,17 @@ Unit = (function(_super) {
   Unit.prototype.filterDamageData = function(damageData) {
     var damage;
     damage = {
-      health: damageData.health,
-      shield: damageData.shield,
-      armor: damageData.armor
+      health: 0,
+      shield: 0,
+      armor: 0
     };
+    if (this.getStat('shield') > 0) {
+      damage.shield = damageData.shield;
+    } else if (this.getStat('armor') > 0) {
+      damage.armor = damageData.armor;
+    } else if (this.getStat('health') > 0) {
+      damage.health = damageData.health;
+    }
     return {
       health: damage.health,
       shield: damage.shield,
@@ -509,6 +554,10 @@ Unit = (function(_super) {
     return this.stats.get(statName);
   };
 
+  Unit.prototype.getStats = function() {
+    return this.stats.attributes;
+  };
+
   Unit.prototype.getCommandByCode = function(commandCode) {
     return this.commands.find(function(command) {
       return command.get('code') === commandCode;
@@ -516,6 +565,7 @@ Unit = (function(_super) {
   };
 
   Unit.prototype.move = function(hex) {
+    console.log('move unit to ....', JSON.stringify(hex.attributes));
     return this.set({
       tileX: hex.get('tileX'),
       tileY: hex.get('tileY')
@@ -636,7 +686,7 @@ ServerProtocol = {
   },
   getRoomById: function(roomId) {
     var room;
-    room = ServerData.rooms.filter(function(room) {
+    room = ServerData.rooms.select(function(room) {
       return room.id === roomId;
     });
     return room[0];
@@ -760,7 +810,7 @@ ServerProtocol = {
     room.announce('startGame', {
       message: 'Game has started'
     });
-    players = room.users.filter(function(u) {
+    players = room.users.select(function(u) {
       return u.get('playerType') === PlayerType.PLAYER;
     });
     unit = ServerProtocol.addUnit({
@@ -774,11 +824,21 @@ ServerProtocol = {
       userId: players.last().id,
       roomId: roomId,
       unitCode: 'lemurian_marine',
-      tileX: 6,
-      tileY: 3,
+      tileX: 1,
+      tileY: 2,
       face: 'left'
     });
-    room.getNextTurn();
+    unit.setStat({
+      baseShield: 100,
+      shield: 20
+    });
+    room.announce('updateUnit', {
+      unitId: unit.id,
+      stats: unit.getStats()
+    });
+    after(10, function() {
+      return room.getNextTurn();
+    });
   },
   addUnit: function(data) {
     var face, room, roomId, tileX, tileY, unit, unitCode, user, userId;
@@ -815,8 +875,8 @@ ServerProtocol = {
     user = room.getUserById(userId);
     point = points.last();
     unit.set({
-      tileX: point.tileX,
-      tileY: point.tileY
+      tileX: point.tileX || point.x,
+      tileY: point.tileY || point.y
     });
     userName = user.get('name');
     unitName = unit.get('name');
@@ -838,17 +898,19 @@ ServerProtocol = {
     socket.on('actUnit', function(data) {
       var command, commandCode, damageData, points, targets, tiles, unit, unitId;
       unitId = data.unitId, points = data.points, commandCode = data.commandCode;
-      if (!unitId) return;
-      if (!commandCode) return;
-      if (!points) return;
-      if (points.length === 0) return;
+      if (!unitId) return console.log('no unitId');
+      if (!commandCode) return console.log('no commandCode');
+      if (!points) return console.log('no points/tiles');
+      if (points.length === 0) return console.log('points length is 0');
       unit = room.getUnitById(unitId);
       if (!unit) return console.log('invalid unitId');
       if (room.get('activeUnit') !== unit) {
         return console.log("unit is not hte active unit");
       }
       tiles = room.grid.convertPoints(points);
-      if (tiles.length === 0) return console.log('invalid points', points);
+      if (tiles.length === 0) {
+        return console.log('invalid points', JSON.stringify(points));
+      }
       command = unit.getCommandByCode(commandCode);
       if (unit.getStat('actions') - command.get('cost') < 0) return;
       damageData = unit.getDamageData(commandCode);
@@ -858,13 +920,32 @@ ServerProtocol = {
       });
       points.each(function(point) {
         var targetUnit, targetUnitStats, totalDamageData;
-        targetUnit = room.units.find(function(u) {
-          return u.get('tileX') === point.tileX && u.get('tileY') === point.tileY;
-        });
-        if (!targetUnit) return;
-        if (targetUnit.dead === true) return;
+        targetUnit = void 0;
+        (function() {
+          var u, _i, _len, _ref, _results;
+          _ref = room.units;
+          _results = [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            u = _ref[_i];
+            console.log('room unit....', u.id, JSON.stringify(unit.attributes));
+            if (u.get('tileX') === point.tileX && u.get('tileY') === point.tileY) {
+              targetUnit = u;
+              console.log('found target unit', u.id, JSON.stringify(u.attributes));
+              break;
+            } else {
+              _results.push(void 0);
+            }
+          }
+          return _results;
+        })();
+        if (!targetUnit) return console.log('no target unit');
+        if (targetUnit.dead === true) return console.log('target is dead');
         totalDamageData = targetUnit.filterDamageData(damageData);
         targetUnitStats = targetUnit.receiveDamageData(totalDamageData);
+        console.log('/////////////////');
+        console.log('damage to unit', targetUnit.id);
+        console.log(totalDamageData);
+        console.log('.');
         targets.push({
           unitId: targetUnit.id,
           damage: totalDamageData,
@@ -872,7 +953,7 @@ ServerProtocol = {
         });
         if (targetUnit.getStat('health') === 0) return targetUnit.dead = true;
       });
-      if (targets.length === 0) return;
+      if (targets.length === 0) return console.log('no targets detected');
       after(1000, function() {
         return room.announce('actUnit', {
           unitId: unitId,
@@ -883,7 +964,10 @@ ServerProtocol = {
       return this;
     });
     socket.on('moveUnit', function(data) {
-      var conflictedTiles, face, points, tiles, totalActions, unit, unitId;
+      var conflictedTiles, face, moveRadius, points, tiles, totalActions, unit, unitId;
+      console.log('//////////////////////////////////////////');
+      console.log('moveUnit event..');
+      console.log('//////////////////////////////////////////');
       if (!data.unitId || !data.points) {
         return console.log("invalid unit and points", data);
       }
@@ -908,11 +992,8 @@ ServerProtocol = {
         return;
       }
       totalActions = 0;
-      unit.set({
-        face: face
-      });
+      moveRadius = unit.getStat('moveRadius');
       conflictedTiles = [];
-      console.log(tiles, 'tiles');
       tiles.each(function(tile) {
         var occupiedUnit, tileId;
         tileId = "" + (tile.get('tileX')) + "_" + (tile.get('tileY'));
@@ -922,16 +1003,20 @@ ServerProtocol = {
           if (occupiedUnit.dead !== true) conflictedTiles.push(tile);
         }
       });
-      if (unit.getStat('actions') < totalActions) {
-        return console.log("cost of movement is < actions", unitId);
+      if (totalActions > moveRadius) {
+        return console.log("total tile cost is greater than the moveRadius");
       }
       if (conflictedTiles.length > 0) {
         return console.log("one of the tiles is occupied");
       }
-      unit.setStat({
-        actions: unit.getStat('actions') - totalActions
+      unit.set({
+        face: face
       });
-      unit.move(tiles.last());
+      unit.setStat({
+        actions: unit.getStat('actions') - 1
+      });
+      console.log('..');
+      console.log('setting unit point', points);
       ServerProtocol.moveUnit({
         unitId: unitId,
         roomId: roomId,
@@ -940,6 +1025,9 @@ ServerProtocol = {
     });
     socket.on('moveUnitEnd', function(data) {
       var deadUnit, tileX, tileY, type, unit, unitId;
+      console.log('//////////////////////////////////////////');
+      console.log('animation end  event..');
+      console.log('//////////////////////////////////////////');
       unitId = data.unitId, type = data.type;
       unit = room.getUnitById(unitId);
       if (userId !== unit.get('userId')) return;
@@ -985,7 +1073,15 @@ ServerProtocol = {
 
 testRoom = ServerProtocol.createRoom('Asgard');
 
-onConnect = function(socket) {
+io.set('brower client minification', true);
+
+io.set('log level', 1);
+
+io.configure(function() {
+  return io.set('transports', ['websocket']);
+});
+
+io.sockets.on('connection', function(socket) {
   var user;
   user = null;
   socket.on('setUserName', function(data) {
@@ -1010,14 +1106,4 @@ onConnect = function(socket) {
     room = ServerProtocol.getRoomById(roomId);
     ServerProtocol.joinRoom(user, room);
   });
-};
-
-io.set('brower client minification', true);
-
-io.set('log level', 1);
-
-io.configure(function() {
-  return io.set('transports', ['websocket']);
 });
-
-io.sockets.on('connection', onConnect);

@@ -16,16 +16,27 @@ PlayerType =
   PLAYER: 'player'
   ARBITER: 'arbiter'
 
-# =========================================
-# Libraries
-# =========================================
+# prototypes
+# /////////////////////////////////////////////////
+Array::last = -> @[@length-1]
+Array::first = -> @[0]
+Array::at = (i) -> @[i]
+
+# collection methods
+# /////////////////////////////////////////////////
+Array::shuffle = -> @sort (a,b) -> Math.round(Math.random() * 10) % 2
+Array::select = (cb) -> item for item, i in this when cb item
+Array::detect = (cb) -> @select(cb)[0]
+Array::find = (cb) -> (@select cb)[0]
+Array::each = (cb) ->
+  cb child for child, i in this
+
+# libraries
 io = require('socket.io').listen PORT
 {Wol} = require './settings'
 
 
-# =========================================
-# UTILITIES
-# =========================================
+# global functions
 randomId = (len=10) ->
   chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
   result = ''
@@ -33,27 +44,10 @@ randomId = (len=10) ->
     i = Math.random() * chars.length
     result += chars.substr i, 1
   result
-
 after = (ms, cb) -> setTimeout cb, ms
 every = (ms, cb) -> setInterval cb, ms
 
-# =========================================
-# EXTENDED METHODS
-# =========================================
-Array::last = -> @[@length-1]
-Array::first = -> @[0]
-Array::at = (i) -> @[i]
-Array::shuffle = -> @sort (a,b) -> Math.round(Math.random() * 10) % 2
-Array::find = (cb) -> (@filter cb)[0]
-Array::each = (cb) ->
-  cb child for child in this
-
-# =========================================
-# CLASSES
-# =========================================
-
 class EventDispatcher
-
   bind: (name, callback) ->
     @e or= {}
     @e[name] or= []
@@ -80,12 +74,7 @@ class EventDispatcher
       event data if event?
     this
 
-
-# ===========================
-# Model
-# ===========================
 class Model extends EventDispatcher
-
   id: randomId()
   attributes: []
 
@@ -107,8 +96,6 @@ class Model extends EventDispatcher
   get: (propertyName) -> @attributes[propertyName]
 
 class Collection extends Model
-
-  collection: []
   initialize: ->
     @collection = []
 
@@ -123,20 +110,16 @@ class Collection extends Model
     @collection.push data
 
   removeById: (id) ->
-    model = @collection.filter (item) -> item.id is id
+    model = @collection.select (item) -> item.id is id
     @collection.splice @collection.indexOf(model), 1
   
   remove: (model) ->
     @collection.splice(@collection.indexOf(model))
 
-  find: (cb) -> (@collection.filter cb)[0]
+  find: (cb) -> @collection.find cb
 
   getAttributes: ->
     @collection.map (model) -> model.attributes
-
-# ===========================
-# User
-# ===========================
 
 class User extends Model
   initialize: ->
@@ -148,15 +131,10 @@ class User extends Model
       .emit eventName, message
     this
 
-
-# ===========================
-# Rooms
-# ===========================
-
 class Room extends Model
-
   users: []
   units: []
+  logs: []
   ready: false
   totalUsers: 0
   grid: undefined
@@ -164,6 +142,7 @@ class Room extends Model
   initialize: ->
     @users = []
     @units = []
+    @logs = []
     @ready = false
     @totalUsers = 0
     @grid = new HexGrid()
@@ -185,16 +164,22 @@ class Room extends Model
 
   # Room.getUserById
   getUserById: (userId) ->
-    user = @users.filter (user) -> user.id is userId
+    user = @users.select (user) -> user.id is userId
     user[0]
 
   getUnitByTileId: (tileId) ->
     @units.find (unit) ->
       tileId is "#{unit.get('tileX')}_#{unit.get('tileY')}"
 
+  getUnitByCoord: (x, y) ->
+    unit for unit in @units when unit.get('tileX') is x and unit.get('tileY') is y
+
   announce: (eventName, data) ->
     console.log "Room Event: #{eventName}"
-    console.log data
+    console.log JSON.stringify data
+    @logs.push
+      eventName: eventName
+      data: data
     @users.each (user) ->
       user.announce eventName, data
     this
@@ -211,7 +196,7 @@ class Room extends Model
 
   # Room.getUnitById
   getUnitById: (unitId) ->
-    unit = @units.filter (unit) -> unit.id is unitId
+    unit = @units.select (unit) -> unit.id is unitId
     unit[0]
 
   # Room.startGame
@@ -258,16 +243,13 @@ class Room extends Model
         activeUnit.stats.set charge: 0
         @set activeUnit: activeUnit
         @trigger 'unitTurn', unit: activeUnit
-        console.log "unit selected", activeUnit
+        console.log "unit selected", JSON.stringify(activeUnit)
       return
 
   getLivingUnits: ->
     what = unit for unit in @units when unit.dead is false
-    what = @units.filter (unit) -> unit.dead is false
+    what = @units.select (unit) -> unit.dead is false
     what
-
-
-
 
   getPlayers: ->
     @users.map (user) ->
@@ -283,10 +265,6 @@ class Room extends Model
     @set ready: false
     @users = []
     @totalUsers = @users.length
-
-# ===========================
-# Units
-# ===========================
 
 class Unit extends Model
   constructor: (unitCode) ->
@@ -312,19 +290,18 @@ class Unit extends Model
       health: @getStat 'health'
       shield: @getStat 'shield'
       armor: @getStat 'armor'
-    stats.health -= damageData.health
-    stats.shield -= damageData.shield
-    stats.armor -= damageData.armor
-
-    stats.health = Math.max 0, stats.health
-    stats.shield = Math.max 0, stats.shield
-    stats.armor = Math.max 0, stats.armor
-
-    @stats.set
-      health: stats.health
-      shield: stats.shield
-      armor: stats.armor
-    # result
+    if stats.shield > 0
+      stats.shield -= damageData.shield
+      stats.shield = Math.max 0, stats.shield
+      @stats.set shield: stats.shield
+    else if stats.armor > 0
+      stats.armor -= damageData.armor
+      stats.armor = Math.max 0, stats.armor
+      @stats.set armor: stats.armor
+    else
+      stats.health -= damageData.health
+      stats.health = Math.max 0, stats.health
+      @stats.set health: stats.health
     health: @getStat 'health'
     shield: @getStat 'shield'
     armor: @getStat 'armor'
@@ -332,12 +309,17 @@ class Unit extends Model
   # apply/filter bonuses/penalties from the damageData
   filterDamageData: (damageData) ->
     damage =
-      health: damageData.health
-      shield: damageData.shield
-      armor: damageData.armor
+      health: 0
+      shield: 0
+      armor: 0
+    if @getStat('shield') > 0
+      damage.shield = damageData.shield
+    else if @getStat('armor') > 0
+      damage.armor = damageData.armor
+    else if @getStat('health') > 0
+      damage.health = damageData.health
     # todo: bonus/penalty conditions here
     # e.g. damage.health = damage.health * 2 if @statusEffects.get('burning')
-    
     health: damage.health
     shield: damage.shield
     armor: damage.armor
@@ -363,31 +345,24 @@ class Unit extends Model
   getStat: (statName) ->
     @stats.get statName
 
+  getStats: ->
+    @stats.attributes
+
   getCommandByCode: (commandCode) ->
     @commands.find (command) ->
       command.get('code') is commandCode
 
   move: (hex) ->
+    console.log 'move unit to ....', JSON.stringify(hex.attributes)
     @set
       tileX: hex.get 'tileX'
       tileY: hex.get 'tileY'
-  
-# ===========================
-# Hex
-# ===========================
 
 class Hex extends Model
-
   initialize: ->
     @set cost: 1
 
-  
-# ===========================
-# Grid
-# ===========================
-
 class HexGrid extends Collection
-
   generate: (cols, rows) ->
     tileY = 0
     while tileY < rows
@@ -403,30 +378,21 @@ class HexGrid extends Collection
     points.map (point) =>
       @find (t) -> t.get('tileX') is (point.tileX or point.x) and t.get('tileY') is (point.tileY or point.y)
 
-# =========================================
-# Server Api
-# =========================================
-
 ServerData =
   rooms: []
   users: []
 
-
-#//////////////////////////////
 ServerProtocol =
-
   createRoom: (roomName) ->
     room = new Room name: roomName
     roomId = room.id
-
-    #//////////////////////////////
+    # endGame
     room.bind 'endGame', (event) ->
       {userId, message} = event
       room.announce 'endGame',
         userId: userId
         message: message
-
-    #//////////////////////////////
+    # unitTurn
     room.bind 'unitTurn', (event) ->
       unit = event.unit
       unit.set moved: false, acted: false
@@ -442,12 +408,11 @@ ServerProtocol =
         stats:
           actions: unit.getStat 'actions'
       console.log message
-  
     ServerData.rooms.push room
     room
   
   getRoomById: (roomId) ->
-    room = ServerData.rooms.filter (room) -> room.id is roomId
+    room = ServerData.rooms.select (room) -> room.id is roomId
     room[0]
   
   joinRoom: (user, room, raceName) ->
@@ -564,7 +529,7 @@ ServerProtocol =
     room = ServerProtocol.getRoomById roomId
     room.announce 'startGame',
       message: 'Game has started'
-    players = room.users.filter (u) ->
+    players = room.users.select (u) ->
       u.get('playerType') is PlayerType.PLAYER
     # deploy a few units at the beginning of the game.
     unit = ServerProtocol.addUnit
@@ -578,11 +543,20 @@ ServerProtocol =
       userId: players.last().id
       roomId: roomId
       unitCode: 'lemurian_marine'
-      tileX: 6
-      tileY: 3
+      tileX: 1
+      tileY: 2
       face: 'left'
 
-    room.getNextTurn()
+    unit.setStat
+      baseShield: 100
+      shield: 20
+
+    room.announce 'updateUnit',
+      unitId: unit.id
+      stats: unit.getStats()
+
+    after 10, ->
+      room.getNextTurn()
 
     return
 
@@ -616,8 +590,8 @@ ServerProtocol =
     # todo (...)
     point = points.last()
     unit.set
-      tileX: point.tileX
-      tileY: point.tileY
+      tileX: point.tileX or point.x
+      tileY: point.tileY or point.y
     userName = user.get 'name'
     unitName = unit.get 'name'
     tileX = points[points.length-1].tileX
@@ -629,29 +603,20 @@ ServerProtocol =
         points: points
         message: "#{user.get 'name'}'s #{unit.get 'name'} is moving to hex(#{tileX}, #{tileY})"
 
-  # Player Commands
-  # //////////////////////////////////////////////////////////
-  # These are the list of events that a playing user can emit.
-  # - actUnit
-  # - moveUnit
-  # - skipTurn
-  # - moveUnitEnd
-  # //////////////////////////////////////////////////////////
   assignEvents: (userId, roomId) ->
     room = ServerProtocol.getRoomById roomId
     user = room.getUserById userId
     socket = user.get 'socket'
     # actUnit
-    # ----------------------------------------------------------
-    #   unitId - the unit's id
-    #   points - the tiles that are affected by the command
-    #   commandCode - a static name for a certain command.
+    # unitId - the unit's id
+    # points - the tiles that are affected by the command
+    # commandCode - a static name for a certain command.
     socket.on 'actUnit', (data) ->
       {unitId, points, commandCode} = data
-      return if !unitId
-      return if !commandCode
-      return if !points
-      return if points.length is 0
+      return console.log('no unitId')if !unitId
+      return console.log('no commandCode') if !commandCode
+      return console.log('no points/tiles') if !points
+      return console.log('points length is 0') if points.length is 0
       # disregard if the unitId doesn't exist
       unit = room.getUnitById unitId
       return console.log('invalid unitId') if !unit
@@ -659,7 +624,7 @@ ServerProtocol =
       return console.log("unit is not hte active unit") if room.get('activeUnit') isnt unit
       # disregard if the points given does not exist
       tiles = room.grid.convertPoints points
-      return console.log('invalid points', points) if tiles.length is 0
+      return console.log('invalid points', JSON.stringify(points)) if tiles.length is 0
       # disregard if insufficient AP
       command = unit.getCommandByCode commandCode
       return if unit.getStat('actions') - command.get('cost') < 0
@@ -670,31 +635,44 @@ ServerProtocol =
       unit.setStat actions: unit.getStat('actions') - command.get('cost')
       # populate the target list
       points.each (point) ->
-        targetUnit = room.units.find (u) ->
-          u.get('tileX') is point.tileX and u.get('tileY') is point.tileY
-        return if !targetUnit
-        return if targetUnit.dead is true
+        targetUnit = undefined
+        (->
+          for u in room.units
+            console.log 'room unit....', u.id, JSON.stringify(unit.attributes)
+            if u.get('tileX') is point.tileX && u.get('tileY') is point.tileY
+              targetUnit = u
+              console.log 'found target unit', u.id, JSON.stringify(u.attributes)
+              break
+        )()
+        return console.log('no target unit') if !targetUnit
+        return console.log('target is dead') if targetUnit.dead is true
         totalDamageData = targetUnit.filterDamageData damageData
         targetUnitStats = targetUnit.receiveDamageData totalDamageData
+        console.log '/////////////////'
+        console.log 'damage to unit', targetUnit.id
+        console.log totalDamageData
+        console.log '.'
         targets.push
           unitId: targetUnit.id
           damage: totalDamageData
           stats: targetUnitStats
         targetUnit.dead = true if targetUnit.getStat('health') is 0
-      return if targets.length is 0
+      return console.log('no targets detected') if targets.length is 0
       after 1000, ->
         room.announce 'actUnit',
           unitId: unitId
           targets: targets
           commandCode: commandCode
       this
-
     # moveUnit
     # when the client send a command to the server
     # stating that a unit has moved to a new tile destination
     # unitId: <String> the id of the unit
     # points: <Array> the tiles in which the unit is moving respectively
     socket.on 'moveUnit', (data) ->
+      console.log '//////////////////////////////////////////'
+      console.log 'moveUnit event..'
+      console.log '//////////////////////////////////////////'
       return console.log("invalid unit and points", data) if !data.unitId or !data.points
       {face, unitId, points} = data
       # cancel if the unit doesn't exist
@@ -713,11 +691,10 @@ ServerProtocol =
             actions: unit.getStat 'actions'
           message: "<Invalid tiles> #{user.get('name')}'s #{unit.get('name')} is continuing its turn."
         return
-      # verify the tile cost
+      # verify the tile cost movement
       totalActions = 0
-      unit.set face: face
+      moveRadius = unit.getStat 'moveRadius'
       conflictedTiles = []
-      console.log tiles, 'tiles'
       tiles.each (tile) ->
         tileId = "#{tile.get('tileX')}_#{tile.get('tileY')}"
         totalActions += tile.get 'cost'
@@ -729,25 +706,29 @@ ServerProtocol =
           if occupiedUnit.dead isnt true
             conflictedTiles.push(tile)
         return
-        # check if the tiles have existing units on them.
-      return console.log("cost of movement is < actions", unitId) if unit.getStat('actions') < totalActions
+      # return console.log("cost of movement is < actions", unitId) if unit.getStat('actions') < totalActions
+      return console.log("total tile cost is greater than the moveRadius") if totalActions > moveRadius
       return console.log("one of the tiles is occupied") if conflictedTiles.length > 0
       # update the unit with the diminished stats
+      unit.set face: face
       unit.setStat
-        actions: unit.getStat('actions') - totalActions
+        actions: unit.getStat('actions') - 1
       # immediate set the unit's position the last tile destination
-      unit.move tiles.last()
+      console.log '..'
+      console.log 'setting unit point', points
       ServerProtocol.moveUnit
         unitId: unitId
         roomId: roomId
         points: points
       return
-
     # moveUnitEnd
     # tells the server that the client just finished performaing an animation
     # the purpose of this event is to sync the clients of players.
     # unitId: <String> the id of the unit
     socket.on 'moveUnitEnd', (data) ->
+      console.log '//////////////////////////////////////////'
+      console.log 'animation end  event..'
+      console.log '//////////////////////////////////////////'
       {unitId, type} = data
       unit = room.getUnitById unitId
       # if the sender isn't the unit owner.
@@ -779,7 +760,7 @@ ServerProtocol =
       else
         room.getNextTurn()
       return
-
+    # skipTurn
     socket.on 'skipTurn', (data) ->
       {unitId} = data
       unit = room.getUnitById unitId
@@ -787,21 +768,19 @@ ServerProtocol =
       return if userId isnt unit.get('userId')
       return if unit isnt room.get('activeUnit')
       room.getNextTurn()
-
     return
 
-
-# CREATE DEFAULT ROOMS
 testRoom = ServerProtocol.createRoom 'Asgard'
 
-# =========================================
-# Communication Protocols and Events
-# =========================================
-onConnect = (socket) ->
-
+io.set 'brower client minification', true
+io.set 'log level', 1
+io.configure ->
+  io.set 'transports', ['websocket']
+  #io.set 'transports', ['xhr-polling']
+  #io.set 'polling duration', 10
+io.sockets.on 'connection', (socket) ->
   user = null
-
-  # before getting into the game system, the user must
+  # before getting into the system, the user must
   # supply the server with a username
   socket.on 'setUserName', (data) ->
     return if user?
@@ -810,16 +789,11 @@ onConnect = (socket) ->
     user.announce 'setUserName',
       userId: user.id
       userName: user.get 'name'
-    # ====================================
-    # D E B U G
-    # ====================================
     raceName = 'lemurian'
     ServerProtocol.joinRoom user, testRoom, raceName
     return
-
-  # adds the user to an existing room by roomId
+  # joinRoom
   socket.on 'joinRoom', (roomId, options) ->
-    # sets the lemurian race as the default race
     if options?
       {raceName} = options
     raceName or= 'lemurian'
@@ -827,17 +801,3 @@ onConnect = (socket) ->
     ServerProtocol.joinRoom user, room
     return
   return
-
-
-
-# =========================================
-# SOCKET CONFIGURATION
-# =========================================
-io.set 'brower client minification', true
-io.set 'log level', 1
-io.configure ->
-  io.set 'transports', ['websocket']
-  #io.set 'transports', ['xhr-polling']
-  #io.set 'polling duration', 10
-io.sockets.on 'connection', onConnect
-

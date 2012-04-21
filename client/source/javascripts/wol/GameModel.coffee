@@ -38,7 +38,8 @@ class Wol.Models.GameModel extends Wol.Models.Model
     @trigger 'addUser', data
 
   getUserById: (userId) ->
-    @users.find (user) -> user.get('userId') is userId
+    @users.find (user) ->
+      user.get('userId') is userId
   
   bindEvents: ->
     @socket.on 'connect', (data) =>
@@ -84,6 +85,9 @@ class Wol.Models.GameModel extends Wol.Models.Model
 
     @socket.on 'unitTurn', (data) =>
       @trigger 'unitTurn', data
+
+    @socket.on 'updateUnit', (data) =>
+      @trigger 'updateUnit', data
 
   setUserName: (userName) ->
     @socket.emit 'setUserName',

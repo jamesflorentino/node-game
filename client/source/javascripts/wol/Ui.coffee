@@ -138,15 +138,6 @@ class Ui.UnitInfo extends Modal
     @gaugeEP.find('.values .value').text energy
     @gaugeEP.find('.values .total').text "/#{baseEnergy}"
 
-  ###
-  show: ->
-    @el.removeClass 'active'
-    after 0, =>
-      @el.removeClass 'hidden'
-      @el.addClass 'active'
-  ###
-
-
 class Ui.EndGame extends Modal
   init: ->
     @el = $ "#endgame"

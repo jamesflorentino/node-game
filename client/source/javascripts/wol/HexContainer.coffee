@@ -21,6 +21,9 @@ class Wol.Views.HexContainer extends Wol.Views.View
     @removeTiles tiles.move if tiles.move?
     @removeTiles tiles.selected if tiles.selected?
     @removeTiles tiles.generated if tiles.generated?
+    tiles.move = []
+    tiles.selected = []
+    tiles.generated = []
 
   # generate a cached version of the tiles.
   # These does not udpate very much often
@@ -49,17 +52,12 @@ class Wol.Views.HexContainer extends Wol.Views.View
     hex.onClick = => @trigger 'hex', "#{tileX}_#{tileY}"
     @background.addChild hex
 
-
   addTilesByPoints: (points, assetName) ->
     tiles = []
     points.forEach (point) =>
       tile = @addTile point, assetName
       tiles.push tile if tile?
     tiles
-  
-  removeTiles: (tiles) ->
-    tiles.forEach (tile) => @removeTile tile
-    this
 
   addTile: (point, assetName) ->
     return if (point.tileX or point.x) < 0 or (point.tileX or point.x) >= Wol.Settings.columns
@@ -78,6 +76,10 @@ class Wol.Views.HexContainer extends Wol.Views.View
       @tiles.splice index, 1
     this
 
+  removeTiles: (tiles) ->
+    tiles.forEach (tile) => @removeTile tile
+    this
+
   convertToPoints: (tiles) ->
     tiles.map (tile) ->
       x: tile.tileX
@@ -86,9 +88,11 @@ class Wol.Views.HexContainer extends Wol.Views.View
   setActiveTile: (tile) ->
     @removeActiveTile()
     @set activeTile: tile
+    return
 
   removeActiveTile: ->
     @removeTile @get('activeTile')
+    this
 
   toPoint: (tileId) ->
     r = tileId.split('_')

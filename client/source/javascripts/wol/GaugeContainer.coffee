@@ -102,6 +102,7 @@ class Gauge extends Model
     {baseShield, baseArmor, baseHealth} = stats
     count = 0
     if baseHealth > 0
+      @health.visible = true
       @health.x = @gaugePositions[count].x + 2
       @health.y = @gaugePositions[count].y
       count++
@@ -109,6 +110,7 @@ class Gauge extends Model
       @health.visible = false
 
     if baseArmor > 0
+      @armor.visible = true
       @armor.x = @gaugePositions[count].x
       @armor.y = @gaugePositions[count].y
       count++
@@ -116,8 +118,10 @@ class Gauge extends Model
       @armor.visible = false
 
     if baseShield > 0
+      @shield.visible = true
       @shield.x = @gaugePositions[count].x
       @shield.y = @gaugePositions[count].y
+      console.log 'baseShield', baseShield
       count++
     else
       @shield.visible = false
